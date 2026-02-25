@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DiNGo Multiplayer Beta</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      text-align: center;
+      font-family: Arial;
+    }
+
+    #grid {
+      width: 90vw;
+      max-width: 400px;
+      margin: 20px auto;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+
+    .cell {
+      background: #222;
+      padding: 20px 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    input {
+      padding: 8px;
+      border-radius: 5px;
+      border: none;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>DiNGo Multiplayer Beta</h1>
+
+<div id="home">
+  <button onclick="createRoom()">Create Room</button>
+  <br>
+  <input type="text" id="roomInput" placeholder="Enter Room Code">
+  <button onclick="joinRoom()">Join Room</button>
+</div>
+
+<div id="game" style="display:none;">
+  <h3 id="roomCode"></h3>
+  <div id="grid"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
+  authDomain: "dingo-beta-c280a.firebaseapp.com",
+  databaseURL: "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
+  projectId: "dingo-beta-c280a",
+  storageBucket: "dingo-beta-c280a.firebasestorage.app",
+  messagingSenderId: "842477284115",
+  appId: "1:842477284115:web:613295de28df40ed2a48e6",
+  measurementId: "G-K7W8YC60E2"
+    // 🔥 PASTE YOUR FIREBASE CONFIG HERE
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  let roomId = "";
+  let playerId = "";
+  let board = [];
+  let selectedNumbers = [];
+
+  function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+
+  window.createRoom = function() {
+    roomId = generateRoomCode();
+    playerId = "player1";
+    board = Array.from({length: 25}, (_, i) => i + 1);
+
+    set(ref(db, "rooms/" + roomId), {
+      player1: true,
+      player2: false,
+      selectedNumbers: []
+    });
+
+    startGame();
+  }
+
+  window.joinRoom = function() {
+    roomId = document.getElementById("roomInput").value.toUpperCase();
+    playerId = "player2";
+    board = Array.from({length: 25}, (_, i) => i + 1);
+
+    update(ref(db, "rooms/" + roomId), {
+      player2: true
+    });
+
+    startGame();
+  }
+
+  function startGame() {
+    document.getElementById("home").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    document.getElementById("roomCode").innerText = "Room: " + roomId;
+
+    renderGrid();
+
+    onValue(ref(db, "rooms/" + roomId + "/selectedNumbers"), snapshot => {
+      selectedNumbers = snapshot.val() || [];
+      renderGrid();
+    });
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    board.forEach(num => {
+      const cell = document.createElement("div");
+      cell.classList.add("cell");
+
+      if (selectedNumbers.includes(num)) {
+        cell.innerText = "❌";
+        cell.style.color = playerId === "player1" ? "red" : "blue";
+      } else {
+        cell.innerText = num;
+        cell.onclick = () => selectNumber(num);
+      }
+
+      grid.appendChild(cell);
+    });
+  }
+
+  function selectNumber(num) {
+    if (!selectedNumbers.includes(num)) {
+      selectedNumbers.push(num);
+      update(ref(db, "rooms/" + roomId), {
+        selectedNumbers: selectedNumbers
+      });
+    }
+  }
+
+</script>
+
+</body>
+</html>
