@@ -1,202 +1,305 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DiNGo Multiplayer Beta</title>
+  <title>DiNGo Strategic Beta</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      background: #111;
-      color: white;
-      text-align: center;
-      font-family: Arial;
-      margin: 0;
-      padding: 0;
-    }
-
-    h1 {
-      margin-top: 20px;
-    }
+    body { background:#111; color:white; text-align:center; font-family:Arial; margin:0; }
+    h2 { margin-top:10px; }
 
     #grid {
-      width: 90vw;
-      max-width: 400px;
-      margin: 20px auto;
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 5px;
+      width:90vw;
+      max-width:400px;
+      margin:15px auto;
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:5px;
     }
 
     .cell {
-      background: #222;
-      padding: 18px 0;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 18px;
+      background:#222;
+      padding:18px 0;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:18px;
     }
 
-    .cell:hover {
-      background: #333;
+    button,input {
+      padding:10px;
+      margin:5px;
+      border-radius:6px;
+      border:none;
     }
 
-    button {
-      padding: 10px 20px;
-      margin: 8px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
+    #status { font-weight:bold; margin-top:5px; }
+    #timer { margin-top:5px; color:cyan; font-weight:bold; }
+    #lineBox { margin-top:5px; font-size:14px; }
+
+    #winnerScreen {
+      display:none;
+      margin-top:40px;
     }
 
-    input {
-      padding: 8px;
-      border-radius: 5px;
-      border: none;
-      margin: 5px;
-      text-align: center;
-    }
-
-    #status {
-      margin-top: 10px;
-      font-weight: bold;
+    .winnerText {
+      font-size:24px;
+      color:lime;
+      margin-bottom:20px;
     }
   </style>
 </head>
 <body>
 
-<h1>DiNGo Multiplayer Beta</h1>
+<h2>DiNGo Strategic Beta</h2>
 
 <div id="home">
-  <button onclick="createRoom()">Create Room</button>
-  <br>
+  <button onclick="createRoom()">Create Room</button><br>
   <input type="text" id="roomInput" placeholder="Enter Room Code">
   <button onclick="joinRoom()">Join Room</button>
+</div>
+
+<div id="setup" style="display:none;">
+  <h3>Arrange Your Board</h3>
+  <p>Tap cells to place numbers 1 → 25</p>
+  <div id="grid"></div>
+  <button onclick="confirmBoard()">Confirm Board</button>
 </div>
 
 <div id="game" style="display:none;">
   <h3 id="roomCode"></h3>
   <div id="status"></div>
+  <div id="timer"></div>
+  <div id="lineBox">
+    Your Lines: <span id="myLines">0</span>/5
+  </div>
   <div id="grid"></div>
 </div>
 
+<div id="winnerScreen">
+  <div class="winnerText" id="winnerText"></div>
+  <button onclick="restartGame()">Play Again</button>
+  <button onclick="goHome()">Exit</button>
+</div>
+
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
-    authDomain: "dingo-beta-c280a.firebaseapp.com",
-    databaseURL: "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
-    projectId: "dingo-beta-c280a",
-    storageBucket: "dingo-beta-c280a.firebasestorage.app",
-    messagingSenderId: "842477284115",
-    appId: "1:842477284115:web:613295de28df40ed2a48e6",
-    measurementId: "G-K7W8YC60E2"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
+  authDomain: "dingo-beta-c280a.firebaseapp.com",
+  databaseURL: "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
+  projectId: "dingo-beta-c280a"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  let roomId = "";
-  let playerId = "";
-  let board = Array.from({length: 25}, (_, i) => i + 1);
-  let selectedNumbers = [];
-  let currentTurn = "";
+let roomId="";
+let playerId="";
+let board=[];
+let selectedNumbers=[];
+let currentTurn="";
+let setupNumber=1;
+let timerInterval;
+let timeLeft=20;
 
-  function generateRoomCode() {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  }
+function generateRoomCode(){
+  return Math.random().toString(36).substring(2,8).toUpperCase();
+}
 
-  window.createRoom = function() {
-    roomId = generateRoomCode();
-    playerId = "player1";
+window.createRoom=function(){
+  roomId=generateRoomCode();
+  playerId="player1";
+  set(ref(db,"rooms/"+roomId),{
+    selectedNumbers:[],
+    currentTurn:"player1",
+    boards:{},
+    winner:null
+  });
+  startSetup();
+}
 
-    set(ref(db, "rooms/" + roomId), {
-      player1: true,
-      player2: false,
-      selectedNumbers: [],
-      currentTurn: "player1"
-    });
+window.joinRoom=function(){
+  roomId=document.getElementById("roomInput").value.toUpperCase();
+  playerId="player2";
+  startSetup();
+}
 
-    startGame();
-  }
+function startSetup(){
+  document.getElementById("home").style.display="none";
+  document.getElementById("setup").style.display="block";
+  board=new Array(25).fill(null);
+  setupNumber=1;
+  renderSetupGrid();
+}
 
-  window.joinRoom = function() {
-    roomId = document.getElementById("roomInput").value.toUpperCase();
-    playerId = "player2";
-
-    update(ref(db, "rooms/" + roomId), {
-      player2: true
-    });
-
-    startGame();
-  }
-
-  function startGame() {
-    document.getElementById("home").style.display = "none";
-    document.getElementById("game").style.display = "block";
-    document.getElementById("roomCode").innerText = "Room: " + roomId;
-
-    renderGrid();
-
-    onValue(ref(db, "rooms/" + roomId + "/selectedNumbers"), snapshot => {
-      selectedNumbers = snapshot.val() || [];
-      renderGrid();
-    });
-
-    onValue(ref(db, "rooms/" + roomId + "/currentTurn"), snapshot => {
-      currentTurn = snapshot.val();
-      updateStatus();
-    });
-  }
-
-  function updateStatus() {
-    const status = document.getElementById("status");
-    if (currentTurn === playerId) {
-      status.innerText = "Your Turn";
-      status.style.color = "lime";
-    } else {
-      status.innerText = "Opponent's Turn";
-      status.style.color = "orange";
-    }
-  }
-
-  function renderGrid() {
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
-
-    board.forEach(num => {
-      const cell = document.createElement("div");
-      cell.classList.add("cell");
-
-      if (selectedNumbers.includes(num)) {
-        cell.innerText = "❌";
-        cell.style.color = selectedNumbers.indexOf(num) % 2 === 0 ? "red" : "blue";
-      } else {
-        cell.innerText = num;
-        cell.onclick = () => selectNumber(num);
+function renderSetupGrid(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  board.forEach((val,i)=>{
+    const cell=document.createElement("div");
+    cell.classList.add("cell");
+    cell.innerText=val?val:"";
+    cell.onclick=()=>{
+      if(!board[i] && setupNumber<=25){
+        board[i]=setupNumber++;
+        renderSetupGrid();
       }
+    }
+    grid.appendChild(cell);
+  });
+}
 
-      grid.appendChild(cell);
-    });
+window.confirmBoard=function(){
+  if(setupNumber<=25){
+    alert("Fill all numbers first!");
+    return;
   }
+  update(ref(db,"rooms/"+roomId+"/boards"),{
+    [playerId]:board
+  });
+  waitForOpponent();
+}
 
-  function selectNumber(num) {
-    if (currentTurn !== playerId) {
-      alert("Not your turn!");
+function waitForOpponent(){
+  document.getElementById("setup").innerHTML="<h3>Waiting for opponent...</h3>";
+  onValue(ref(db,"rooms/"+roomId+"/boards"),snapshot=>{
+    const data=snapshot.val();
+    if(data && data.player1 && data.player2){
+      startGame();
+    }
+  });
+}
+
+function startGame(){
+  document.getElementById("setup").style.display="none";
+  document.getElementById("game").style.display="block";
+  document.getElementById("roomCode").innerText="Room: "+roomId;
+
+  onValue(ref(db,"rooms/"+roomId),snapshot=>{
+    const data=snapshot.val();
+    if(!data) return;
+
+    selectedNumbers=data.selectedNumbers||[];
+    currentTurn=data.currentTurn;
+
+    if(data.winner){
+      showWinner(data.winner);
       return;
     }
 
-    if (!selectedNumbers.includes(num)) {
-      selectedNumbers.push(num);
+    updateStatus();
+    renderGameGrid();
+    updateLineUI();
+    startTimer();
+  });
+}
 
-      update(ref(db, "rooms/" + roomId), {
-        selectedNumbers: selectedNumbers,
-        currentTurn: playerId === "player1" ? "player2" : "player1"
-      });
+function updateStatus(){
+  const status=document.getElementById("status");
+  status.innerText=currentTurn===playerId?"Your Turn":"Opponent Turn";
+  status.style.color=currentTurn===playerId?"lime":"orange";
+}
+
+function renderGameGrid(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  board.forEach(num=>{
+    const cell=document.createElement("div");
+    cell.classList.add("cell");
+
+    if(selectedNumbers.includes(num)){
+      cell.innerText="❌";
+      cell.style.color=selectedNumbers.indexOf(num)%2===0?"red":"blue";
+    } else {
+      cell.innerText=num;
+      cell.onclick=()=>selectNumber(num);
     }
+    grid.appendChild(cell);
+  });
+}
+
+function selectNumber(num){
+  if(currentTurn!==playerId) return;
+  if(selectedNumbers.includes(num)) return;
+
+  selectedNumbers.push(num);
+
+  let winner=null;
+  if(countLines(board,selectedNumbers)>=5){
+    winner=playerId;
   }
 
-</script>
+  update(ref(db,"rooms/"+roomId),{
+    selectedNumbers:selectedNumbers,
+    currentTurn:playerId==="player1"?"player2":"player1",
+    winner:winner
+  });
+}
 
+function countLines(board,selected){
+  let lines=0;
+
+  for(let r=0;r<5;r++){
+    let row=true;
+    for(let c=0;c<5;c++){
+      if(!selected.includes(board[r*5+c])) row=false;
+    }
+    if(row) lines++;
+  }
+
+  for(let c=0;c<5;c++){
+    let col=true;
+    for(let r=0;r<5;r++){
+      if(!selected.includes(board[r*5+c])) col=false;
+    }
+    if(col) lines++;
+  }
+
+  let d1=true,d2=true;
+  for(let i=0;i<5;i++){
+    if(!selected.includes(board[i*5+i])) d1=false;
+    if(!selected.includes(board[i*5+(4-i)])) d2=false;
+  }
+
+  if(d1) lines++;
+  if(d2) lines++;
+
+  return lines;
+}
+
+function updateLineUI(){
+  document.getElementById("myLines").innerText =
+    countLines(board,selectedNumbers);
+}
+
+function startTimer(){
+  clearInterval(timerInterval);
+  timeLeft=20;
+  document.getElementById("timer").innerText="Time: "+timeLeft;
+
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    document.getElementById("timer").innerText="Time: "+timeLeft;
+    if(timeLeft<=0) clearInterval(timerInterval);
+  },1000);
+}
+
+function showWinner(winner){
+  document.getElementById("game").style.display="none";
+  document.getElementById("winnerScreen").style.display="block";
+  document.getElementById("winnerText").innerText =
+    winner===playerId?"🎉 You Win!":"😢 You Lose!";
+}
+
+window.restartGame=function(){
+  location.reload();
+}
+
+window.goHome=function(){
+  location.reload();
+}
+
+</script>
 </body>
 </html>
