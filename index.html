@@ -1,174 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>DiNGo Stable</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { background:#111; color:white; text-align:center; font-family:Arial; }
-    #grid { width:90vw; max-width:400px; margin:15px auto; display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
-    .cell { background:#222; padding:18px 0; border-radius:8px; cursor:pointer; font-size:18px; }
-    button,input { padding:10px; margin:5px; border-radius:6px; border:none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DiNGo</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
 </head>
 <body>
+    <div id="home-screen" class="screen active">
+        <h1>DiNGo</h1>
+        <button id="create-btn" class="btn primary">Create Room</button>
+        <div class="join-section">
+            <input type="text" id="room-code-input" placeholder="Enter Room Code">
+            <button id="join-btn" class="btn secondary">Join Room</button>
+        </div>
+        <p id="home-msg"></p>
+    </div>
 
-<h2>DiNGo Multiplayer</h2>
+    <div id="setup-screen" class="screen">
+        <h2>Setup Board</h2>
+        <p>Tap boxes to fill 1 to 25</p>
+        <p>Room Code: <strong id="display-room-code"></strong></p>
+        <div id="setup-board" class="board"></div>
+        <button id="ready-btn" class="btn primary" disabled>Ready</button>
+    </div>
 
-<div id="home">
-  <button onclick="createRoom()">Create Room</button><br>
-  <input type="text" id="roomInput" placeholder="Enter Room Code">
-  <button onclick="joinRoom()">Join Room</button><br>
-  <button onclick="quickMatch()">Quick Match</button>
-</div>
+    <div id="game-screen" class="screen">
+        <h2 id="turn-indicator">Waiting for opponent...</h2>
+        <div id="game-board" class="board"></div>
+    </div>
 
-<div id="setup" style="display:none;">
-  <h3>Arrange Your Board</h3>
-  <div id="grid"></div>
-  <button onclick="confirmBoard()">Confirm</button>
-</div>
-
-<div id="waiting" style="display:none;">
-  <h3>Waiting for opponent...</h3>
-</div>
-
-<div id="game" style="display:none;">
-  <h3 id="roomText"></h3>
-</div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, update, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
-  authDomain: "dingo-beta-c280a.firebaseapp.com",
-  databaseURL: "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
-  projectId: "dingo-beta-c280a"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-let roomId="";
-let playerId="";
-let board=[];
-let setupNumber=1;
-
-function generateRoomCode(){
-  return Math.random().toString(36).substring(2,8).toUpperCase();
-}
-
-/* ---------- CREATE ROOM ---------- */
-window.createRoom=function(){
-  roomId = generateRoomCode();
-  playerId = "player1";
-
-  set(ref(db,"rooms/"+roomId),{
-    player1:true,
-    player2:false,
-    boards:{}
-  });
-
-  startSetup();
-}
-
-/* ---------- JOIN BY CODE ---------- */
-window.joinRoom=async function(){
-  roomId = document.getElementById("roomInput").value.toUpperCase();
-  const snapshot = await get(ref(db,"rooms/"+roomId));
-
-  if(!snapshot.exists()){
-    alert("Room not found");
-    return;
-  }
-
-  playerId="player2";
-  update(ref(db,"rooms/"+roomId),{ player2:true });
-
-  startSetup();
-}
-
-/* ---------- QUICK MATCH ---------- */
-window.quickMatch=async function(){
-  const snapshot = await get(ref(db,"rooms"));
-
-  if(snapshot.exists()){
-    const rooms = snapshot.val();
-
-    for(let id in rooms){
-      if(rooms[id].player1 && !rooms[id].player2){
-        roomId=id;
-        playerId="player2";
-        update(ref(db,"rooms/"+roomId),{ player2:true });
-        startSetup();
-        return;
-      }
-    }
-  }
-
-  // If no waiting room found → create new
-  createRoom();
-}
-
-/* ---------- SETUP ---------- */
-function startSetup(){
-  document.getElementById("home").style.display="none";
-  document.getElementById("setup").style.display="block";
-
-  board = new Array(25).fill(null);
-  setupNumber = 1;
-  renderSetup();
-}
-
-function renderSetup(){
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
-
-  board.forEach((val,i)=>{
-    const cell=document.createElement("div");
-    cell.classList.add("cell");
-    cell.innerText = val ? val : "";
-
-    cell.onclick = ()=>{
-      if(!board[i] && setupNumber<=25){
-        board[i]=setupNumber++;
-        renderSetup();
-      }
-    };
-
-    grid.appendChild(cell);
-  });
-}
-
-/* ---------- CONFIRM BOARD ---------- */
-window.confirmBoard=function(){
-  if(setupNumber<=25){
-    alert("Fill all 25 numbers");
-    return;
-  }
-
-  update(ref(db,"rooms/"+roomId+"/boards"),{
-    [playerId]:board
-  });
-
-  document.getElementById("setup").style.display="none";
-  document.getElementById("waiting").style.display="block";
-
-  onValue(ref(db,"rooms/"+roomId),snapshot=>{
-    const data=snapshot.val();
-    if(data && data.boards.player1 && data.boards.player2){
-      startGame();
-    }
-  });
-}
-
-/* ---------- START GAME ---------- */
-function startGame(){
-  document.getElementById("waiting").style.display="none";
-  document.getElementById("game").style.display="block";
-  document.getElementById("roomText").innerText="Room: "+roomId;
-}
-
-</script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
