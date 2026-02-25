@@ -84,14 +84,13 @@
 
   const firebaseConfig = {
     apiKey: "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
-  authDomain: "dingo-beta-c280a.firebaseapp.com",
-  databaseURL: "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
-  projectId: "dingo-beta-c280a",
-  storageBucket: "dingo-beta-c280a.firebasestorage.app",
-  messagingSenderId: "842477284115",
-  appId: "1:842477284115:web:613295de28df40ed2a48e6",
-  measurementId: "G-K7W8YC60E2"
-    // 🔥 PASTE YOUR FIREBASE CONFIG HERE
+    authDomain: "dingo-beta-c280a.firebaseapp.com",
+    databaseURL: "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
+    projectId: "dingo-beta-c280a",
+    storageBucket: "dingo-beta-c280a.firebasestorage.app",
+    messagingSenderId: "842477284115",
+    appId: "1:842477284115:web:613295de28df40ed2a48e6",
+    measurementId: "G-K7W8YC60E2"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -182,14 +181,12 @@
   }
 
   function selectNumber(num) {
-
     if (currentTurn !== playerId) {
       alert("Not your turn!");
       return;
     }
 
     if (!selectedNumbers.includes(num)) {
-
       selectedNumbers.push(num);
 
       update(ref(db, "rooms/" + roomId), {
