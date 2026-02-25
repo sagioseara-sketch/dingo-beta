@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DiNGo Fixed Beta</title>
+  <title>DiNGo Stable</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { background:#111; color:white; text-align:center; font-family:Arial; }
@@ -12,23 +12,27 @@
 </head>
 <body>
 
-<h2>DiNGo Fixed Beta</h2>
+<h2>DiNGo Multiplayer</h2>
 
 <div id="home">
   <button onclick="createRoom()">Create Room</button><br>
   <input type="text" id="roomInput" placeholder="Enter Room Code">
-  <button onclick="joinRoom()">Join Room</button>
+  <button onclick="joinRoom()">Join Room</button><br>
+  <button onclick="quickMatch()">Quick Match</button>
 </div>
 
 <div id="setup" style="display:none;">
-  <h3>Arrange Board</h3>
+  <h3>Arrange Your Board</h3>
   <div id="grid"></div>
   <button onclick="confirmBoard()">Confirm</button>
 </div>
 
+<div id="waiting" style="display:none;">
+  <h3>Waiting for opponent...</h3>
+</div>
+
 <div id="game" style="display:none;">
   <h3 id="roomText"></h3>
-  <div id="grid"></div>
 </div>
 
 <script type="module">
@@ -54,84 +58,113 @@ function generateRoomCode(){
   return Math.random().toString(36).substring(2,8).toUpperCase();
 }
 
-window.createRoom = async function(){
+/* ---------- CREATE ROOM ---------- */
+window.createRoom=function(){
   roomId = generateRoomCode();
   playerId = "player1";
 
-  await set(ref(db,"rooms/"+roomId),{
-    boards:{},
-    selectedNumbers:[],
-    currentTurn:"player1",
-    winner:null
+  set(ref(db,"rooms/"+roomId),{
+    player1:true,
+    player2:false,
+    boards:{}
   });
 
   startSetup();
 }
 
-window.joinRoom = async function(){
+/* ---------- JOIN BY CODE ---------- */
+window.joinRoom=async function(){
   roomId = document.getElementById("roomInput").value.toUpperCase();
-  playerId = "player2";
-
   const snapshot = await get(ref(db,"rooms/"+roomId));
+
   if(!snapshot.exists()){
-    alert("Room not found!");
+    alert("Room not found");
     return;
   }
+
+  playerId="player2";
+  update(ref(db,"rooms/"+roomId),{ player2:true });
 
   startSetup();
 }
 
+/* ---------- QUICK MATCH ---------- */
+window.quickMatch=async function(){
+  const snapshot = await get(ref(db,"rooms"));
+
+  if(snapshot.exists()){
+    const rooms = snapshot.val();
+
+    for(let id in rooms){
+      if(rooms[id].player1 && !rooms[id].player2){
+        roomId=id;
+        playerId="player2";
+        update(ref(db,"rooms/"+roomId),{ player2:true });
+        startSetup();
+        return;
+      }
+    }
+  }
+
+  // If no waiting room found → create new
+  createRoom();
+}
+
+/* ---------- SETUP ---------- */
 function startSetup(){
   document.getElementById("home").style.display="none";
   document.getElementById("setup").style.display="block";
-  board=new Array(25).fill(null);
-  setupNumber=1;
-  renderSetupGrid();
+
+  board = new Array(25).fill(null);
+  setupNumber = 1;
+  renderSetup();
 }
 
-function renderSetupGrid(){
-  const grid=document.getElementById("grid");
-  grid.innerHTML="";
+function renderSetup(){
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
   board.forEach((val,i)=>{
     const cell=document.createElement("div");
     cell.classList.add("cell");
-    cell.innerText=val?val:"";
-    cell.onclick=()=>{
+    cell.innerText = val ? val : "";
+
+    cell.onclick = ()=>{
       if(!board[i] && setupNumber<=25){
         board[i]=setupNumber++;
-        renderSetupGrid();
+        renderSetup();
       }
-    }
+    };
+
     grid.appendChild(cell);
   });
 }
 
-window.confirmBoard = async function(){
+/* ---------- CONFIRM BOARD ---------- */
+window.confirmBoard=function(){
   if(setupNumber<=25){
     alert("Fill all 25 numbers");
     return;
   }
 
-  await update(ref(db,"rooms/"+roomId+"/boards"),{
+  update(ref(db,"rooms/"+roomId+"/boards"),{
     [playerId]:board
   });
 
-  waitForBoth();
-}
+  document.getElementById("setup").style.display="none";
+  document.getElementById("waiting").style.display="block";
 
-function waitForBoth(){
-  document.getElementById("setup").innerHTML="<h3>Waiting for opponent...</h3>";
-
-  onValue(ref(db,"rooms/"+roomId+"/boards"),snapshot=>{
+  onValue(ref(db,"rooms/"+roomId),snapshot=>{
     const data=snapshot.val();
-    if(data && data.player1 && data.player2){
+    if(data && data.boards.player1 && data.boards.player2){
       startGame();
     }
   });
 }
 
+/* ---------- START GAME ---------- */
 function startGame(){
-  document.getElementById("setup").style.display="none";
+  document.getElementById("waiting").style.display="none";
   document.getElementById("game").style.display="block";
   document.getElementById("roomText").innerText="Room: "+roomId;
 }
