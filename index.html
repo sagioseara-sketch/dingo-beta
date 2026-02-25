@@ -2,12 +2,19 @@
 <html>
 <head>
   <title>DiNGo Multiplayer Beta</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       background: #111;
       color: white;
       text-align: center;
       font-family: Arial;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      margin-top: 20px;
     }
 
     #grid {
@@ -21,18 +28,23 @@
 
     .cell {
       background: #222;
-      padding: 20px 0;
+      padding: 18px 0;
       border-radius: 8px;
       cursor: pointer;
       font-size: 18px;
     }
 
+    .cell:hover {
+      background: #333;
+    }
+
     button {
       padding: 10px 20px;
-      margin: 5px;
+      margin: 8px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
+      font-weight: bold;
     }
 
     input {
@@ -40,6 +52,12 @@
       border-radius: 5px;
       border: none;
       margin: 5px;
+      text-align: center;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -56,6 +74,7 @@
 
 <div id="game" style="display:none;">
   <h3 id="roomCode"></h3>
+  <div id="status"></div>
   <div id="grid"></div>
 </div>
 
@@ -80,8 +99,9 @@
 
   let roomId = "";
   let playerId = "";
-  let board = [];
+  let board = Array.from({length: 25}, (_, i) => i + 1);
   let selectedNumbers = [];
+  let currentTurn = "";
 
   function generateRoomCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -90,12 +110,12 @@
   window.createRoom = function() {
     roomId = generateRoomCode();
     playerId = "player1";
-    board = Array.from({length: 25}, (_, i) => i + 1);
 
     set(ref(db, "rooms/" + roomId), {
       player1: true,
       player2: false,
-      selectedNumbers: []
+      selectedNumbers: [],
+      currentTurn: "player1"
     });
 
     startGame();
@@ -104,7 +124,6 @@
   window.joinRoom = function() {
     roomId = document.getElementById("roomInput").value.toUpperCase();
     playerId = "player2";
-    board = Array.from({length: 25}, (_, i) => i + 1);
 
     update(ref(db, "rooms/" + roomId), {
       player2: true
@@ -124,6 +143,22 @@
       selectedNumbers = snapshot.val() || [];
       renderGrid();
     });
+
+    onValue(ref(db, "rooms/" + roomId + "/currentTurn"), snapshot => {
+      currentTurn = snapshot.val();
+      updateStatus();
+    });
+  }
+
+  function updateStatus() {
+    const status = document.getElementById("status");
+    if (currentTurn === playerId) {
+      status.innerText = "Your Turn";
+      status.style.color = "lime";
+    } else {
+      status.innerText = "Opponent's Turn";
+      status.style.color = "orange";
+    }
   }
 
   function renderGrid() {
@@ -136,7 +171,7 @@
 
       if (selectedNumbers.includes(num)) {
         cell.innerText = "❌";
-        cell.style.color = playerId === "player1" ? "red" : "blue";
+        cell.style.color = selectedNumbers.indexOf(num) % 2 === 0 ? "red" : "blue";
       } else {
         cell.innerText = num;
         cell.onclick = () => selectNumber(num);
@@ -147,10 +182,19 @@
   }
 
   function selectNumber(num) {
+
+    if (currentTurn !== playerId) {
+      alert("Not your turn!");
+      return;
+    }
+
     if (!selectedNumbers.includes(num)) {
+
       selectedNumbers.push(num);
+
       update(ref(db, "rooms/" + roomId), {
-        selectedNumbers: selectedNumbers
+        selectedNumbers: selectedNumbers,
+        currentTurn: playerId === "player1" ? "player2" : "player1"
       });
     }
   }
