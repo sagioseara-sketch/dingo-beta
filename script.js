@@ -150,10 +150,10 @@ document.getElementById('create-btn').addEventListener('click', async () => {
     roomId = Math.floor(1000 + Math.random() * 9000).toString();
     playerRole = "p1";
     
-    // FIX: Using "init" instead of "0" to prevent Firebase array bugs
+    // BACK TO BASICS: selectedNumbers array
     await set(ref(db, `rooms/${roomId}`), {
         players: { p1: myUsername },
-        gameState: { status: "waiting", currentTurn: "p1", selected: { "init": "system" }, winner: "" }
+        gameState: { status: "waiting", currentTurn: "p1", selectedNumbers: [0], winner: "" }
     });
 
     document.getElementById('display-room-code').innerText = roomId;
@@ -301,26 +301,15 @@ function startGame() {
             turnText.style.color = "#aaaaaa";
         }
 
-        // FIX: Rebuilding how we read the crosses to be 100% bug-free
-        if (state.selected) {
-            Object.keys(state.selected).forEach(key => {
-                if (key !== "init") { 
-                    const num = parseInt(key.replace('n', '')); // Strip the "n" off the front
-                    const playerWhoPicked = state.selected[key]; 
+        // THE RELIABLE ARRAY CHECK
+        if (state.selectedNumbers) {
+            state.selectedNumbers.forEach(num => {
+                if (num !== 0) { 
                     const cell = document.getElementById(`cell-${num}`);
-                    if (cell) {
-                        // Add the correct Red or Blue CSS class
-                        cell.classList.add(`crossed-${playerWhoPicked}`);
-                    }
+                    if (cell) cell.classList.add('crossed');
                 }
             });
-            
-            // Build the array for the Win Checker
-            const pickedNumbersArray = Object.keys(state.selected)
-                .filter(k => k !== "init")
-                .map(k => parseInt(k.replace('n', '')));
-                
-            checkWin(pickedNumbersArray);
+            checkWin(state.selectedNumbers);
         }
     });
 }
@@ -330,20 +319,20 @@ async function handleNumberClick(num) {
     const snapshot = await get(stateRef);
     const state = snapshot.val();
 
-    // FIX: Prepend "n" to the number so Firebase treats it as a string instead of an array index
-    const key = `n${num}`;
-
-    if (state.currentTurn === playerRole && !state.winner && !(state.selected && state.selected[key])) {
+    // STRICT CHECK: Is it my turn? Did no one win? Is the number NOT in the array?
+    if (state.currentTurn === playerRole && !state.winner && !state.selectedNumbers.includes(num)) {
+        const newSelected = [...(state.selectedNumbers || []), num];
         const nextTurn = playerRole === "p1" ? "p2" : "p1";
+
         await update(stateRef, {
-            [`selected/${key}`]: playerRole,
+            selectedNumbers: newSelected,
             currentTurn: nextTurn
         });
     }
 }
 
-function checkWin(pickedNumbersArray) {
-    const hits = myBoard.map(num => pickedNumbersArray.includes(num) ? 1 : 0);
+function checkWin(selectedArray) {
+    const hits = myBoard.map(num => selectedArray.includes(num) ? 1 : 0);
     let lines = 0;
 
     for (let i = 0; i < 25; i += 5) if (hits[i] && hits[i+1] && hits[i+2] && hits[i+3] && hits[i+4]) lines++;
