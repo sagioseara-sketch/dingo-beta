@@ -1,53 +1,51 @@
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-body { background-color: #121212; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
-
-/* Screen Management */
-.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 400px; padding: 20px; text-align: center; }
-.screen.active { display: flex; }
-
-/* Buttons & Inputs */
-.btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
-.primary { background-color: #00ffcc; color: #121212; }
-.secondary { background-color: #ff007f; color: #ffffff; }
-.btn:disabled { background-color: #555; cursor: not-allowed; }
-input { width: 100%; padding: 15px; text-align: center; font-size: 18px; border-radius: 8px; border: 2px solid #555; background: #222; color: #fff; margin-bottom: 10px; }
-
-/* 5x5 Board Grid */
-.board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: 100%; max-width: 350px; margin-top: 20px; }
-
-/* BASE CELL */
-.cell { background-color: #2a2a2a; border-radius: 5px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
-.cell:active { transform: scale(0.95); }
-
-/* ❌ THE ORIGINAL SIMPLE CROSS ❌ */
-.cell.crossed { 
-    background-color: #1a1a1a; 
-    color: #555; 
-    text-decoration: line-through; 
-    border-color: #ff007f; 
+body {
+  margin: 0;
+  background: #0f0f14;
+  color: white;
+  font-family: sans-serif;
+  text-align: center;
 }
 
-#turn-indicator { font-size: 22px; margin-bottom: 10px; color: #00ffcc; }
+button {
+  padding: 10px 20px;
+  margin: 8px;
+  background: #1c1c25;
+  color: white;
+  border: none;
+  border-radius: 8px;
+}
 
-/* UI ELEMENTS */
-.error-text { color: #ff3333; margin-top: 10px; font-size: 14px; }
-.timer-text { font-size: 24px; font-weight: bold; color: #ff007f; margin: 10px 0; }
-.outline { background: transparent; border: 2px solid #00ffcc; color: #00ffcc; }
-.search-section, .history-section { width: 100%; margin-top: 20px; text-align: left; background: #1a1a1a; padding: 15px; border-radius: 8px; }
-#history-list { list-style: none; margin-top: 10px; max-height: 150px; overflow-y: auto; }
-#history-list li { padding: 8px; border-bottom: 1px solid #333; font-size: 14px; }
-.win-text { color: #00ffcc; font-weight: bold; }
-.lose-text { color: #ff3333; font-weight: bold; }
+input {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+}
 
-/* WIN/LOSS OVERLAY */
-.overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-.overlay.hidden { display: none; }
-#result-text { font-size: 50px; margin-bottom: 30px; text-transform: uppercase; text-shadow: 0 0 20px currentColor; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 10px;
+}
 
-.anim-win { color: #00ffcc; animation: winPulse 1s infinite alternate, popIn 0.5s ease-out; }
-@keyframes winPulse { 0% { transform: scale(1); text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc; } 100% { transform: scale(1.1); text-shadow: 0 0 20px #00ffcc, 0 0 40px #00ffcc, 0 0 60px #fff; } }
-@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.cell {
+  background: #1c1c25;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  border-radius: 8px;
+}
 
-.anim-lose { color: #ff3333; animation: shake 0.5s ease-in-out, fadeGray 2s forwards; }
-@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px) rotate(-5deg); } 50% { transform: translateX(10px) rotate(5deg); } 75% { transform: translateX(-10px) rotate(-5deg); } }
-@keyframes fadeGray { 100% { filter: grayscale(100%); opacity: 0.8; } }
+.red {
+  background: #8b0000;
+}
+
+.blue {
+  background: #001f8b;
+}
+
+.hidden {
+  display: none;
+}
