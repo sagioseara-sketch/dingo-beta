@@ -2,435 +2,573 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BINGO — Live Multiplayer</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>DiNGo — Live Multiplayer Bingo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    /* ─────────────────────────────────────────
+
+    /* ══════════════════════════════════════════
        DESIGN TOKENS
-    ───────────────────────────────────────── */
+    ══════════════════════════════════════════ */
     :root {
-      --bg:        #080c14;
-      --surface:   #0e1623;
-      --border:    rgba(255,255,255,0.07);
-      --accent:    #00e5ff;
-      --accent2:   #ff3cac;
-      --gold:      #ffd166;
-      --text:      #e8edf5;
-      --muted:     #5a6a82;
-      --cell-size: clamp(48px, 10vw, 68px);
-      --radius:    14px;
-      --glow:      0 0 24px rgba(0,229,255,0.35);
-      --glow2:     0 0 24px rgba(255,60,172,0.35);
+      --bg:       #07090f;
+      --surf:     #0d1220;
+      --surf2:    #131927;
+      --border:   rgba(255,255,255,0.07);
+      --cyan:     #00e5ff;
+      --pink:     #ff3cac;
+      --gold:     #ffd166;
+      --green:    #06ffa5;
+      --text:     #dde6f0;
+      --muted:    #4e5f78;
+      --radius:   14px;
+      --glow-c:   0 0 28px rgba(0,229,255,0.4);
+      --glow-p:   0 0 28px rgba(255,60,172,0.4);
     }
 
-    /* ─────────────────────────────────────────
-       RESET & BASE
-    ───────────────────────────────────────── */
+    /* ══════════════════════════════════════════
+       RESET
+    ══════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Syne', sans-serif;
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
-      position: relative;
     }
 
-    /* Animated mesh background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: -50%;
-      width: 200%;
-      height: 200%;
-      background:
-        radial-gradient(ellipse 60% 50% at 20% 30%, rgba(0,229,255,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 60% at 80% 70%, rgba(255,60,172,0.07) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255,209,102,0.04) 0%, transparent 70%);
-      animation: meshDrift 18s ease-in-out infinite alternate;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Floating grid dots */
-    body::after {
-      content: '';
+    /* Animated background mesh */
+    .bg-mesh {
       position: fixed;
       inset: 0;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px);
-      background-size: 36px 36px;
-      pointer-events: none;
       z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
     }
-
-    @keyframes meshDrift {
-      0%   { transform: translate(0, 0) rotate(0deg); }
-      100% { transform: translate(3%, 4%) rotate(3deg); }
-    }
-
-    /* ─────────────────────────────────────────
-       SCREEN SYSTEM
-    ───────────────────────────────────────── */
-    .screen {
+    .bg-mesh::before {
+      content: '';
       position: absolute;
+      inset: -60%;
+      width: 220%; height: 220%;
+      background:
+        radial-gradient(ellipse 55% 45% at 15% 25%, rgba(0,229,255,0.09) 0%, transparent 55%),
+        radial-gradient(ellipse 45% 55% at 85% 75%, rgba(255,60,172,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse 35% 35% at 55% 50%, rgba(6,255,165,0.04) 0%, transparent 65%);
+      animation: meshDrift 20s ease-in-out infinite alternate;
+    }
+    .bg-mesh::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.028) 1px, transparent 1px);
+      background-size: 34px 34px;
+    }
+    @keyframes meshDrift {
+      from { transform: translate(0,0) rotate(0deg); }
+      to   { transform: translate(4%,3%) rotate(4deg); }
+    }
+
+    /* ══════════════════════════════════════════
+       SCREEN SYSTEM
+    ══════════════════════════════════════════ */
+    .screen {
+      position: fixed;
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 16px;
       opacity: 0;
       pointer-events: none;
-      transform: translateY(18px) scale(0.98);
-      transition: opacity 0.45s cubic-bezier(.4,0,.2,1),
-                  transform 0.45s cubic-bezier(.4,0,.2,1);
-      z-index: 1;
+      transform: translateY(20px) scale(0.97);
+      transition: opacity .45s cubic-bezier(.4,0,.2,1), transform .45s cubic-bezier(.4,0,.2,1);
+      z-index: 10;
     }
-
     .screen.active {
       opacity: 1;
       pointer-events: all;
       transform: translateY(0) scale(1);
     }
 
-    /* ─────────────────────────────────────────
-       CARD CONTAINER
-    ───────────────────────────────────────── */
+    /* ══════════════════════════════════════════
+       CARD
+    ══════════════════════════════════════════ */
     .card {
-      background: var(--surface);
+      background: var(--surf);
       border: 1px solid var(--border);
       border-radius: 24px;
-      padding: 40px 44px;
       width: 100%;
-      max-width: 460px;
+      max-width: 440px;
       position: relative;
       overflow: hidden;
-      box-shadow:
-        0 32px 80px rgba(0,0,0,0.55),
-        inset 0 1px 0 rgba(255,255,255,0.06);
+      box-shadow: 0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
     }
-
-    /* Card top accent line */
     .card::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 2px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
+    }
+    .card-body {
+      padding: 36px 36px 32px;
+      overflow-y: auto;
+      max-height: calc(100vh - 48px);
+      scrollbar-width: none;
+    }
+    .card-body::-webkit-scrollbar { display: none; }
+
+    /* ══════════════════════════════════════════
+       ① SPLASH / WELCOME SCREEN
+    ══════════════════════════════════════════ */
+    #splash-screen {
+      background: var(--bg);
+    }
+    #splash-screen .card {
+      max-width: 480px;
+      text-align: center;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    #splash-screen .card::before { display: none; }
+
+    .splash-logo-wrap {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .splash-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(80px, 20vw, 130px);
+      letter-spacing: 16px;
+      background: linear-gradient(135deg, var(--cyan) 0%, var(--pink) 60%, var(--gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: block;
+      animation: logoIntro 1s cubic-bezier(.17,.67,.35,1.4) both, logoPulse 4s ease-in-out 1s infinite;
+      filter: drop-shadow(0 0 40px rgba(0,229,255,0.3));
+    }
+    @keyframes logoIntro {
+      0%   { opacity: 0; transform: scale(0.5) translateY(40px); letter-spacing: 0; }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes logoPulse {
+      0%,100% { filter: drop-shadow(0 0 20px rgba(0,229,255,0.35)); }
+      50%      { filter: drop-shadow(0 0 50px rgba(255,60,172,0.5)); }
     }
 
-    /* ─────────────────────────────────────────
-       LOGO / TITLE
-    ───────────────────────────────────────── */
-    .logo {
+    /* Orbiting ring behind logo */
+    .splash-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,229,255,0.15);
+      transform: translate(-50%,-50%);
+      animation: ringOrbit 6s linear infinite;
+      pointer-events: none;
+    }
+    .splash-ring::after {
+      content: '';
+      position: absolute;
+      top: -4px; left: calc(50% - 4px);
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: var(--glow-c);
+    }
+    @keyframes ringOrbit { from { transform: translate(-50%,-50%) rotate(0deg); } to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+    .splash-ring2 {
+      width: 260px; height: 260px;
+      border-color: rgba(255,60,172,0.1);
+      animation: ringOrbit 10s linear infinite reverse;
+    }
+    .splash-ring2::after { background: var(--pink); box-shadow: var(--glow-p); }
+
+    .splash-tagline {
+      font-size: 13px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      animation: fadeUp .8s .4s both;
+    }
+    .splash-desc {
+      font-size: 15px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.7;
+      margin-bottom: 40px;
+      max-width: 320px;
+      margin-left: auto; margin-right: auto;
+      animation: fadeUp .8s .6s both;
+    }
+
+    /* Floating particles behind splash */
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .particle {
+      position: absolute;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      animation: floatUp linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes floatUp {
+      0%   { opacity: 0; transform: translateY(0) scale(0); }
+      10%  { opacity: 1; }
+      90%  { opacity: 0.6; }
+      100% { opacity: 0; transform: translateY(-110vh) scale(1.5); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════════
+       ② NAME ENTRY SCREEN
+    ══════════════════════════════════════════ */
+    .name-logo {
       font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(52px, 10vw, 72px);
-      letter-spacing: 10px;
-      line-height: 1;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      font-size: 38px;
+      letter-spacing: 8px;
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       text-align: center;
-      animation: logoPulse 3s ease-in-out infinite;
+      margin-bottom: 4px;
     }
-
-    @keyframes logoPulse {
-      0%, 100% { filter: drop-shadow(0 0 12px rgba(0,229,255,0.4)); }
-      50%       { filter: drop-shadow(0 0 24px rgba(255,60,172,0.5)); }
-    }
-
-    .tagline {
+    .screen-subtitle {
       text-align: center;
-      color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
       letter-spacing: 3px;
       text-transform: uppercase;
-      margin-top: 4px;
-      margin-bottom: 36px;
-    }
-
-    /* ─────────────────────────────────────────
-       DIVIDER
-    ───────────────────────────────────────── */
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 24px 0;
       color: var(--muted);
-      font-size: 12px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
+      margin-bottom: 32px;
     }
 
-    /* ─────────────────────────────────────────
-       INPUTS
-    ───────────────────────────────────────── */
-    .input-group {
+    .avatar-row {
       display: flex;
       gap: 10px;
+      justify-content: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .avatar-opt {
+      font-size: 26px;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: var(--surf2);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: border-color .2s, transform .15s, box-shadow .2s;
+    }
+    .avatar-opt:hover { transform: scale(1.1); border-color: var(--cyan); }
+    .avatar-opt.selected {
+      border-color: var(--cyan);
+      box-shadow: 0 0 16px rgba(0,229,255,0.4);
+      background: rgba(0,229,255,0.1);
+    }
+
+    /* ══════════════════════════════════════════
+       SHARED FORM ELEMENTS
+    ══════════════════════════════════════════ */
+    .field-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: block;
     }
 
     input[type="text"] {
-      flex: 1;
+      width: 100%;
       background: rgba(255,255,255,0.04);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 13px 16px;
       color: var(--text);
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Syne', sans-serif;
       font-size: 15px;
-      letter-spacing: 4px;
-      text-transform: uppercase;
       outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color .2s, box-shadow .2s;
     }
-
-    input[type="text"]::placeholder {
-      color: var(--muted);
-      letter-spacing: 2px;
-      text-transform: none;
-      font-size: 14px;
-    }
-
+    input[type="text"]::placeholder { color: var(--muted); font-size: 14px; }
     input[type="text"]:focus {
-      border-color: var(--accent);
+      border-color: var(--cyan);
       box-shadow: 0 0 0 3px rgba(0,229,255,0.12);
     }
 
-    /* ─────────────────────────────────────────
+    /* ══════════════════════════════════════════
        BUTTONS
-    ───────────────────────────────────────── */
+    ══════════════════════════════════════════ */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 13px 24px;
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
       border: none;
       outline: none;
-      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border-radius: 10px;
+      padding: 13px 20px;
+      transition: transform .15s, box-shadow .2s, opacity .15s;
       position: relative;
       overflow: hidden;
     }
-
     .btn::after {
       content: '';
       position: absolute;
       inset: 0;
       background: rgba(255,255,255,0.08);
       opacity: 0;
-      transition: opacity 0.15s;
+      transition: opacity .15s;
     }
-
     .btn:hover::after { opacity: 1; }
-    .btn:active { transform: scale(0.97); }
+    .btn:active { transform: scale(0.96) !important; }
+    .btn:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), #0088ff);
+    .btn-full { width: 100%; }
+
+    .btn-cyan {
+      background: linear-gradient(135deg, var(--cyan), #007acc);
       color: #000;
       box-shadow: 0 4px 20px rgba(0,229,255,0.3);
-      width: 100%;
     }
+    .btn-cyan:hover { box-shadow: 0 6px 30px rgba(0,229,255,0.5); transform: translateY(-1px); }
 
-    .btn-primary:hover {
-      box-shadow: 0 6px 28px rgba(0,229,255,0.5);
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border);
-      color: var(--text);
-      white-space: nowrap;
-    }
-
-    .btn-secondary:hover { border-color: var(--accent); }
-
-    .btn-ready {
-      background: linear-gradient(135deg, var(--accent2), #8b00ff);
+    .btn-pink {
+      background: linear-gradient(135deg, var(--pink), #8b00ff);
       color: #fff;
       box-shadow: 0 4px 20px rgba(255,60,172,0.3);
+    }
+    .btn-pink:hover { box-shadow: 0 6px 30px rgba(255,60,172,0.5); transform: translateY(-1px); }
+
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold), #ff8c00);
+      color: #000;
+      box-shadow: 0 4px 20px rgba(255,209,102,0.3);
+    }
+    .btn-gold:hover { box-shadow: 0 6px 30px rgba(255,209,102,0.5); transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-ghost:hover { border-color: var(--cyan); }
+
+    /* Enter arena — big splash button */
+    .btn-arena {
+      padding: 16px 48px;
+      font-size: 16px;
+      letter-spacing: 3px;
+      background: linear-gradient(135deg, var(--cyan) 0%, var(--pink) 100%);
+      color: #fff;
+      border-radius: 14px;
+      box-shadow: 0 8px 40px rgba(0,229,255,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
+      animation: fadeUp .8s .9s both, arenaPulse 3s ease-in-out 1.7s infinite;
       width: 100%;
-      font-size: 15px;
-      padding: 15px;
+      max-width: 280px;
+    }
+    @keyframes arenaPulse {
+      0%,100% { box-shadow: 0 8px 40px rgba(0,229,255,0.35); }
+      50%      { box-shadow: 0 8px 60px rgba(255,60,172,0.55); }
     }
 
-    .btn-ready:hover {
-      box-shadow: 0 6px 28px rgba(255,60,172,0.5);
-      transform: translateY(-1px);
-    }
-
-    .btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-      transform: none !important;
-      box-shadow: none !important;
-    }
-
-    /* ─────────────────────────────────────────
-       ROOM CODE BADGE
-    ───────────────────────────────────────── */
-    .room-badge {
-      background: rgba(0,229,255,0.07);
-      border: 1px solid rgba(0,229,255,0.2);
-      border-radius: 12px;
-      padding: 14px 20px;
-      margin-bottom: 28px;
+    .divider {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-    }
-
-    .room-badge-label {
+      gap: 10px;
+      color: var(--muted);
       font-size: 11px;
       letter-spacing: 2px;
       text-transform: uppercase;
-      color: var(--muted);
+      margin: 18px 0;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1;
+      height: 1px; background: var(--border);
     }
 
-    .room-badge-code {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 28px;
-      letter-spacing: 8px;
-      color: var(--accent);
-      text-shadow: var(--glow);
+    /* ══════════════════════════════════════════
+       HOME SCREEN
+    ══════════════════════════════════════════ */
+    .btn-row { display: flex; gap: 10px; }
+    .join-row { display: flex; gap: 8px; margin-top: 4px; }
+    .join-row input { flex: 1; letter-spacing: 4px; text-transform: uppercase; }
+
+    #home-msg {
+      min-height: 18px;
+      font-size: 13px;
+      color: var(--pink);
+      text-align: center;
+      margin-top: 14px;
+      animation: fadeUp .3s ease;
     }
 
-    .waiting-pulse {
+    /* ══════════════════════════════════════════
+       ROOM BADGE
+    ══════════════════════════════════════════ */
+    .room-badge {
+      background: rgba(0,229,255,0.06);
+      border: 1px solid rgba(0,229,255,0.18);
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .room-badge-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
       color: var(--muted);
-      margin-top: 6px;
+      margin-bottom: 4px;
     }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      animation: blink 1.2s ease-in-out infinite;
+    .room-badge-code {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 30px;
+      letter-spacing: 8px;
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
     }
-
-    .dot:nth-child(2) { animation-delay: 0.2s; }
-    .dot:nth-child(3) { animation-delay: 0.4s; }
-
+    .waiting-dots {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); animation: blink 1.2s ease-in-out infinite; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
     @keyframes blink {
-      0%, 100% { opacity: 0.2; transform: scale(0.8); }
-      50%       { opacity: 1;   transform: scale(1.2); }
+      0%,100% { opacity: 0.2; transform: scale(0.8); }
+      50%      { opacity: 1;   transform: scale(1.2); }
     }
 
-    /* ─────────────────────────────────────────
-       SECTION TITLE
-    ───────────────────────────────────────── */
+    /* ══════════════════════════════════════════
+       SETUP SCREEN
+    ══════════════════════════════════════════ */
     .section-title {
       font-family: 'Bebas Neue', sans-serif;
-      font-size: 26px;
-      letter-spacing: 4px;
-      color: var(--text);
-      margin-bottom: 6px;
+      font-size: 22px;
+      letter-spacing: 3px;
+      margin-bottom: 4px;
     }
-
     .section-sub {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--muted);
-      margin-bottom: 24px;
+      margin-bottom: 16px;
       line-height: 1.5;
     }
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
+      width: 0%;
+      transition: width .3s ease;
+      border-radius: 999px;
+    }
 
-    /* ─────────────────────────────────────────
-       BINGO BOARD — SHARED
-    ───────────────────────────────────────── */
+    /* ══════════════════════════════════════════
+       BINGO BOARD  — responsive, no-scroll
+    ══════════════════════════════════════════ */
+    .board-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
     .board {
       display: grid;
-      grid-template-columns: repeat(5, var(--cell-size));
-      grid-template-rows: repeat(5, var(--cell-size));
-      gap: 8px;
-      margin: 0 auto 28px;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: 6px;
+      /* Fits within viewport — 5 cells + 4 gaps */
+      width: min(100%, min(calc(100vw - 64px), calc(100vh - 340px)));
+      aspect-ratio: 1;
+    }
+
+    /* Game screen has extra chrome (player names, turn bar) — tighter */
+    #game-screen .board {
+      width: min(100%, min(calc(100vw - 32px), calc(100vh - 260px)));
     }
 
     .cell {
-      width: var(--cell-size);
-      height: var(--cell-size);
-      border-radius: var(--radius);
+      border-radius: 10px;
       border: 1px solid var(--border);
       background: rgba(255,255,255,0.03);
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(18px, 3.5vw, 24px);
-      letter-spacing: 1px;
+      font-size: clamp(14px, 3.8vw, 22px);
       color: var(--text);
       cursor: pointer;
-      transition:
-        background 0.2s,
-        border-color 0.2s,
-        transform 0.15s,
-        box-shadow 0.2s;
+      transition: background .2s, border-color .2s, transform .15s, box-shadow .2s;
+      user-select: none;
       position: relative;
       overflow: hidden;
-      user-select: none;
+      aspect-ratio: 1; /* ensures square */
     }
 
-    /* Setup phase: empty cell hover */
     #setup-board .cell:not([data-filled]):hover {
-      background: rgba(0,229,255,0.06);
-      border-color: rgba(0,229,255,0.3);
-      transform: scale(1.05);
-    }
-
-    /* Setup phase: filled cell */
-    #setup-board .cell[data-filled] {
-      background: rgba(0,229,255,0.08);
-      border-color: rgba(0,229,255,0.3);
-      color: var(--accent);
-      animation: cellPop 0.25s cubic-bezier(.17,.67,.35,1.4);
-    }
-
-    @keyframes cellPop {
-      0%   { transform: scale(0.7); opacity: 0; }
-      100% { transform: scale(1);   opacity: 1; }
-    }
-
-    /* Game phase: normal hover */
-    #game-board .cell:not(.crossed):hover {
-      background: rgba(255,209,102,0.08);
-      border-color: rgba(255,209,102,0.3);
+      background: rgba(0,229,255,0.07);
+      border-color: rgba(0,229,255,0.35);
       transform: scale(1.06);
-      box-shadow: 0 0 16px rgba(255,209,102,0.2);
+    }
+    #setup-board .cell[data-filled] {
+      background: rgba(0,229,255,0.09);
+      border-color: rgba(0,229,255,0.3);
+      color: var(--cyan);
+      animation: cellPop .25s cubic-bezier(.17,.67,.35,1.4);
+    }
+    @keyframes cellPop {
+      0%   { transform: scale(0.65); opacity: 0; }
+      100% { transform: scale(1);    opacity: 1; }
     }
 
-    /* Crossed cell */
+    #game-board .cell:not(.crossed):hover {
+      background: rgba(255,209,102,0.09);
+      border-color: rgba(255,209,102,0.35);
+      transform: scale(1.07);
+    }
     .cell.crossed {
-      background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(255,60,172,0.15));
-      border-color: var(--accent);
+      background: linear-gradient(135deg, rgba(0,229,255,0.18), rgba(255,60,172,0.18));
+      border-color: var(--cyan);
       cursor: default;
-      animation: crossPop 0.35s cubic-bezier(.17,.67,.35,1.4);
+      animation: crossPop .35s cubic-bezier(.17,.67,.35,1.4);
     }
-
     .cell.crossed::after {
       content: '✕';
       position: absolute;
@@ -438,244 +576,969 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.4em;
-      color: var(--accent);
-      text-shadow: var(--glow);
-      opacity: 0.5;
+      color: var(--cyan);
+      font-size: 1.3em;
+      opacity: 0.55;
+      text-shadow: var(--glow-c);
     }
-
     @keyframes crossPop {
-      0%   { transform: scale(1.25); }
-      60%  { transform: scale(0.92); }
-      100% { transform: scale(1); }
+      0%  { transform: scale(1.3); }
+      60% { transform: scale(0.9); }
+      100%{ transform: scale(1); }
     }
 
-    /* ─────────────────────────────────────────
-       TURN INDICATOR
-    ───────────────────────────────────────── */
+    /* ══════════════════════════════════════════
+       GAME SCREEN LAYOUT
+    ══════════════════════════════════════════ */
+    #game-screen .card { max-width: 520px; }
+    #game-screen .card-body { padding: 20px 20px 18px; }
+
+    /* Player name boxes */
+    .players-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .player-box {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      flex: 1;
+      min-width: 0;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .player-box.p1 { border-color: rgba(0,229,255,0.25); }
+    .player-box.p2 { border-color: rgba(255,60,172,0.25); flex-direction: row-reverse; text-align: right; }
+    .player-box.active-turn { box-shadow: 0 0 14px rgba(255,209,102,0.3); border-color: var(--gold) !important; }
+    .player-avatar { font-size: 18px; flex-shrink: 0; }
+    .player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .player-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .vs-badge {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    /* Turn indicator */
     #turn-indicator {
       font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(20px, 4vw, 28px);
-      letter-spacing: 4px;
+      font-size: clamp(16px, 4vw, 22px);
+      letter-spacing: 3px;
       text-align: center;
-      margin-bottom: 20px;
-      min-height: 36px;
-      transition: color 0.3s;
-      animation: fadeSlideIn 0.4s ease;
+      margin-bottom: 10px;
+      min-height: 28px;
+      transition: color .3s;
     }
 
-    @keyframes fadeSlideIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ─────────────────────────────────────────
-       SETUP PROGRESS
-    ───────────────────────────────────────── */
-    .progress-bar {
-      height: 3px;
-      background: var(--border);
-      border-radius: 999px;
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border-radius: 999px;
-      transition: width 0.3s ease;
-      width: 0%;
-    }
-
-    /* ─────────────────────────────────────────
-       ERROR / MESSAGE TEXT
-    ───────────────────────────────────────── */
-    #home-msg {
-      min-height: 20px;
-      font-size: 13px;
-      color: var(--accent2);
-      text-align: center;
+    /* Action buttons row */
+    .action-row {
+      display: flex;
+      gap: 8px;
       margin-top: 14px;
-      letter-spacing: 0.5px;
-      animation: fadeSlideIn 0.3s ease;
+    }
+    .action-row .btn {
+      flex: 1;
+      font-size: 12px;
+      padding: 10px 8px;
     }
 
-    /* ─────────────────────────────────────────
-       GAME SCREEN LAYOUT OVERRIDE
-       (wider card for the 5×5 board)
-    ───────────────────────────────────────── */
-    #game-screen .card {
-      max-width: 520px;
-      padding: 32px 36px;
+    /* ══════════════════════════════════════════
+       CHAT / EMOJI MESSENGER
+    ══════════════════════════════════════════ */
+    .chat-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--pink));
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 6px 24px rgba(0,229,255,0.4);
+      z-index: 100;
+      transition: transform .2s, box-shadow .2s;
+      animation: fabPop .4s cubic-bezier(.17,.67,.35,1.4);
     }
+    .chat-fab:hover { transform: scale(1.1); box-shadow: 0 8px 32px rgba(255,60,172,0.5); }
+    @keyframes fabPop {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .chat-badge {
+      position: absolute;
+      top: -2px; right: -2px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: 2px solid var(--bg);
+      display: none;
+    }
+    .chat-badge.show { display: block; }
 
-    /* ─────────────────────────────────────────
-       SCROLLABLE CARD INNER (mobile safety)
-    ───────────────────────────────────────── */
-    .card-inner {
-      max-height: 90vh;
+    .chat-panel {
+      position: fixed;
+      bottom: 88px;
+      right: 24px;
+      width: 280px;
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+      z-index: 99;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: scale(0.85) translateY(20px);
+      transform-origin: bottom right;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .25s;
+    }
+    .chat-panel.open {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+    .chat-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
+    }
+    .chat-header {
+      padding: 14px 16px 10px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-messages {
+      flex: 1;
       overflow-y: auto;
-      scrollbar-width: none;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
     }
-    .card-inner::-webkit-scrollbar { display: none; }
+    .chat-msg {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .chat-msg.mine { align-items: flex-end; }
+    .chat-bubble {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 20px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      animation: bubblePop .2s cubic-bezier(.17,.67,.35,1.4);
+    }
+    .chat-msg.mine .chat-bubble {
+      background: rgba(0,229,255,0.1);
+      border-color: rgba(0,229,255,0.2);
+    }
+    .chat-sender {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    @keyframes bubblePop {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .chat-emojis {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .emoji-btn {
+      font-size: 20px;
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, border-color .15s;
+    }
+    .emoji-btn:hover { transform: scale(1.2); border-color: var(--cyan); }
 
-    /* ─────────────────────────────────────────
-       RESPONSIVE
-    ───────────────────────────────────────── */
-    @media (max-width: 520px) {
-      :root { --cell-size: 52px; }
-      .card { padding: 28px 20px; }
-      .board { gap: 5px; }
+    /* ══════════════════════════════════════════
+       WIN OVERLAY + CONFETTI
+    ══════════════════════════════════════════ */
+    #win-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(7,9,15,0.88);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .4s;
+      padding: 24px;
     }
+    #win-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .win-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(60px, 18vw, 100px);
+      letter-spacing: 10px;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--gold), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: winBounce 1s cubic-bezier(.17,.67,.35,1.4) both;
+      text-align: center;
+    }
+    @keyframes winBounce {
+      0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
+      60%  { transform: scale(1.15) rotate(3deg); }
+      80%  { transform: scale(0.95) rotate(-1deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .win-subtitle {
+      font-size: 16px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 8px;
+      margin-bottom: 36px;
+      letter-spacing: 2px;
+      text-align: center;
+      animation: fadeUp .6s .4s both;
+    }
+    .win-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeUp .6s .6s both;
+    }
+
+    /* Confetti canvas */
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 199;
+    }
+
+    /* ══════════════════════════════════════════
+       SETUP BOTTOM ROW
+    ══════════════════════════════════════════ */
+    .setup-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .setup-actions .btn { flex: 1; font-size: 12px; padding: 10px 8px; }
   </style>
 </head>
 <body>
 
-  <!-- ══════════════════════════════════════════
-       HOME SCREEN
-  ══════════════════════════════════════════ -->
-  <div id="home-screen" class="screen active">
-    <div class="card">
-      <div class="card-inner">
-        <div class="logo">BINGO</div>
-        <p class="tagline">Multiplayer · Live · Real-time</p>
+<div class="bg-mesh"></div>
 
-        <!-- Create Room -->
-        <button id="create-btn" class="btn btn-primary">
-          ＋ &nbsp;Create Room
-        </button>
+<!-- Floating particles -->
+<div class="particles" id="particles"></div>
 
-        <div class="divider">or join</div>
+<!-- Confetti canvas (win animation) -->
+<canvas id="confetti-canvas"></canvas>
 
-        <!-- Join Room -->
-        <div class="input-group">
-          <input
-            id="room-code-input"
-            type="text"
-            maxlength="4"
-            placeholder="Enter code e.g. A3K9"
-          />
-          <button id="join-btn" class="btn btn-secondary">Join</button>
-        </div>
+<!-- Win Overlay -->
+<div id="win-overlay">
+  <div class="win-title" id="win-title-text">YOU WIN!</div>
+  <div class="win-subtitle" id="win-subtitle-text">Incredible performance 🎯</div>
+  <div class="win-buttons">
+    <button class="btn btn-gold" id="win-restart-btn">↺ &nbsp;Restart Match</button>
+    <button class="btn btn-ghost" id="win-reset-btn">⏏ &nbsp;Exit</button>
+  </div>
+</div>
 
-        <p id="home-msg"></p>
+
+<!-- ══════════════════════════════════════════
+     ① SPLASH SCREEN
+══════════════════════════════════════════ -->
+<div id="splash-screen" class="screen active">
+  <div class="card">
+    <div class="card-body" style="text-align:center; padding: 48px 36px 52px;">
+
+      <div class="splash-logo-wrap">
+        <div class="splash-ring"></div>
+        <div class="splash-ring splash-ring2"></div>
+        <span class="splash-logo">DiNGo</span>
       </div>
+
+      <p class="splash-tagline">Real-time Multiplayer</p>
+      <p class="splash-desc">Place your numbers. Call the shots. Be the first to mark 5 lines and claim the arena.</p>
+
+      <button class="btn btn-arena" id="enter-arena-btn">
+        ⚡ &nbsp;Enter the Arena
+      </button>
+
     </div>
   </div>
+</div>
 
 
-  <!-- ══════════════════════════════════════════
-       SETUP SCREEN
-  ══════════════════════════════════════════ -->
-  <div id="setup-screen" class="screen">
-    <div class="card">
-      <div class="card-inner">
+<!-- ══════════════════════════════════════════
+     ② NAME ENTRY SCREEN
+══════════════════════════════════════════ -->
+<div id="name-screen" class="screen">
+  <div class="card">
+    <div class="card-body">
+      <div class="name-logo">DiNGo</div>
+      <p class="screen-subtitle">Choose your identity</p>
 
-        <!-- Room badge -->
-        <div class="room-badge">
-          <div>
-            <div class="room-badge-label">Room Code</div>
-            <div class="room-badge-code" id="display-room-code">——</div>
-            <div class="waiting-pulse">
-              <span class="dot"></span>
-              <span class="dot"></span>
-              <span class="dot"></span>
-              <span>Waiting for opponent</span>
-            </div>
+      <p class="field-label">Pick an avatar</p>
+      <div class="avatar-row" id="avatar-row">
+        <!-- Avatars generated by JS -->
+      </div>
+
+      <p class="field-label" style="margin-top:16px;">Your name</p>
+      <input type="text" id="player-name-input" maxlength="14" placeholder="e.g. Nova, Ace, Zara…" style="margin-bottom:20px;" />
+
+      <button class="btn btn-cyan btn-full" id="name-confirm-btn">
+        → &nbsp;Continue to Lobby
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     ③ HOME SCREEN
+══════════════════════════════════════════ -->
+<div id="home-screen" class="screen">
+  <div class="card">
+    <div class="card-body">
+      <div class="name-logo">DiNGo</div>
+      <p class="screen-subtitle">Multiplayer · Live</p>
+
+      <button id="create-btn" class="btn btn-cyan btn-full">
+        ＋ &nbsp;Create Room
+      </button>
+
+      <div class="divider">or join existing</div>
+
+      <div class="join-row">
+        <input id="room-code-input" type="text" maxlength="4" placeholder="Room code e.g. A3K9" />
+        <button id="join-btn" class="btn btn-ghost">Join</button>
+      </div>
+
+      <p id="home-msg"></p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     ④ SETUP SCREEN
+══════════════════════════════════════════ -->
+<div id="setup-screen" class="screen">
+  <div class="card">
+    <div class="card-body">
+
+      <div class="room-badge">
+        <div>
+          <div class="room-badge-label">Room Code</div>
+          <div class="room-badge-code" id="display-room-code">——</div>
+          <div class="waiting-dots">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span id="waiting-label">Waiting for opponent</span>
           </div>
         </div>
+      </div>
 
-        <div class="section-title">Arrange Your Board</div>
-        <p class="section-sub">Click each cell to place numbers 1 → 25 in any order you like.</p>
+      <div class="section-title">Arrange Your Board</div>
+      <p class="section-sub">Tap cells to place 1 → 25 in any order, or shuffle randomly.</p>
 
-        <!-- Progress bar -->
-        <div class="progress-bar">
-          <div class="progress-fill" id="setup-progress"></div>
-        </div>
+      <div class="progress-bar"><div class="progress-fill" id="setup-progress"></div></div>
 
-        <!-- 5×5 Setup Grid -->
+      <div class="setup-actions">
+        <button class="btn btn-ghost" id="shuffle-btn">🔀 Random</button>
+        <button class="btn btn-ghost" id="clear-btn">✕ Clear</button>
+      </div>
+
+      <div class="board-wrap">
         <div class="board" id="setup-board"></div>
-
-        <button id="ready-btn" class="btn btn-ready" disabled>
-          ✓ &nbsp;I'm Ready!
-        </button>
-
       </div>
+
+      <button id="ready-btn" class="btn btn-pink btn-full" disabled>
+        ✓ &nbsp;I'm Ready!
+      </button>
+
     </div>
   </div>
+</div>
 
 
-  <!-- ══════════════════════════════════════════
-       GAME SCREEN
-  ══════════════════════════════════════════ -->
-  <div id="game-screen" class="screen">
-    <div class="card">
-      <div class="card-inner">
+<!-- ══════════════════════════════════════════
+     ⑤ GAME SCREEN
+══════════════════════════════════════════ -->
+<div id="game-screen" class="screen">
+  <div class="card">
+    <div class="card-body">
 
-        <div class="logo" style="font-size:36px; letter-spacing:6px; margin-bottom:4px;">BINGO</div>
+      <!-- Player name boxes -->
+      <div class="players-row">
+        <div class="player-box p1" id="p1-box">
+          <span class="player-avatar" id="p1-avatar">🎮</span>
+          <div>
+            <div class="player-label">Player 1</div>
+            <div class="player-name" id="p1-name">—</div>
+          </div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="player-box p2" id="p2-box">
+          <span class="player-avatar" id="p2-avatar">🕹️</span>
+          <div style="text-align:right">
+            <div class="player-label">Player 2</div>
+            <div class="player-name" id="p2-name">—</div>
+          </div>
+        </div>
+      </div>
 
-        <!-- Turn indicator -->
-        <div id="turn-indicator">Loading…</div>
+      <!-- Turn indicator -->
+      <div id="turn-indicator">Loading…</div>
 
-        <!-- 5×5 Game Board -->
+      <!-- Game board -->
+      <div class="board-wrap">
         <div class="board" id="game-board"></div>
-
       </div>
+
+      <!-- Reset / Restart -->
+      <div class="action-row">
+        <button class="btn btn-gold" id="restart-btn">↺ Restart</button>
+        <button class="btn btn-ghost" id="reset-btn">⏏ Exit</button>
+      </div>
+
     </div>
   </div>
+</div>
 
 
-  <!-- ══════════════════════════════════════════
-       JS (must be type="module" for Firebase imports)
-  ══════════════════════════════════════════ -->
-  <script type="module" src="script.js"></script>
+<!-- ══════════════════════════════════════════
+     CHAT FAB + PANEL (hidden until room active)
+══════════════════════════════════════════ -->
+<button class="chat-fab" id="chat-fab" style="display:none;">
+  💬
+  <div class="chat-badge" id="chat-badge"></div>
+</button>
 
-  <!-- Progress bar sync with setupCounter -->
-  <script type="module">
-    /*
-      We patch the setup board's cell click handler to also update
-      the visual progress bar whenever a number is placed.
-      This is purely cosmetic and does NOT modify script.js logic.
-    */
-    const setupBoard = document.getElementById('setup-board');
-    const progressFill = document.getElementById('setup-progress');
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">💬 &nbsp;Quick Reactions</div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-emojis" id="chat-emojis">
+    <!-- Emojis rendered by JS -->
+  </div>
+</div>
 
-    if (setupBoard && progressFill) {
-      setupBoard.addEventListener('click', (e) => {
-        const cell = e.target.closest('.cell');
-        if (!cell || cell.dataset.filled) return;
 
-        // Count currently filled cells after this click
-        requestAnimationFrame(() => {
-          const filled = setupBoard.querySelectorAll('[data-filled]').length;
-          progressFill.style.width = (filled / 25 * 100) + '%';
-        });
+<!-- ══════════════════════════════════════════
+     FIREBASE MODULE SCRIPT
+══════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import {
+  getDatabase, ref, set, get, update, onValue, push
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Mark cell as filled so CSS can style it
-        if (cell.innerText) {
-          cell.dataset.filled = 'true';
-          requestAnimationFrame(() => {
-            const filled = setupBoard.querySelectorAll('[data-filled]').length;
-            progressFill.style.width = (filled / 25 * 100) + '%';
-          });
+// ── Firebase config ──────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
+  authDomain:        "dingo-beta-c280a.firebaseapp.com",
+  databaseURL:       "https://dingo-beta-c280a-default-rtdb.firebaseio.com",
+  projectId:         "dingo-beta-c280a",
+  storageBucket:     "dingo-beta-c280a.firebasestorage.app",
+  messagingSenderId: "842477284115",
+  appId:             "1:842477284115:web:613295de28df40ed2a48e6",
+  measurementId:     "G-K7W8YC60E2"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ── Game state ────────────────────────────────────────────────────────────────
+let myPlayerId = Math.random().toString(36).substring(2, 9);
+let roomId     = "";
+let playerRole = "";
+let myBoard    = [];
+let setupCounter = 1;
+let playerName = "Player";
+let playerAvatar = "🎮";
+let chatOpen   = false;
+let unreadChat = false;
+let winShown   = false;
+
+// ── Screens ───────────────────────────────────────────────────────────────────
+const screens = {
+  splash: document.getElementById('splash-screen'),
+  name:   document.getElementById('name-screen'),
+  home:   document.getElementById('home-screen'),
+  setup:  document.getElementById('setup-screen'),
+  game:   document.getElementById('game-screen')
+};
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+
+// ── Splash particles ──────────────────────────────────────────────────────────
+(function spawnParticles() {
+  const container = document.getElementById('particles');
+  const colors = ['#00e5ff','#ff3cac','#ffd166','#06ffa5'];
+  for (let i = 0; i < 28; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = 3 + Math.random() * 5;
+    p.style.cssText = `
+      left: ${Math.random()*100}%;
+      bottom: -10px;
+      width: ${size}px; height: ${size}px;
+      background: ${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration: ${6+Math.random()*10}s;
+      animation-delay: ${Math.random()*8}s;
+      border-radius: 50%;
+    `;
+    container.appendChild(p);
+  }
+})();
+
+// ── Avatar options ────────────────────────────────────────────────────────────
+const AVATARS = ['🦊','🐉','👾','🤖','🦋','🔥','⚡','🌙','💎','🎯'];
+const avatarRow = document.getElementById('avatar-row');
+let selectedAvatar = AVATARS[0];
+
+AVATARS.forEach(a => {
+  const el = document.createElement('div');
+  el.className = 'avatar-opt' + (a === selectedAvatar ? ' selected' : '');
+  el.textContent = a;
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.avatar-opt').forEach(x => x.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedAvatar = a;
+  });
+  avatarRow.appendChild(el);
+});
+
+// ── Enter Arena ───────────────────────────────────────────────────────────────
+document.getElementById('enter-arena-btn').addEventListener('click', () => {
+  showScreen('name');
+});
+
+// ── Name confirm ──────────────────────────────────────────────────────────────
+document.getElementById('name-confirm-btn').addEventListener('click', () => {
+  const input = document.getElementById('player-name-input').value.trim();
+  playerName   = input || 'Player';
+  playerAvatar = selectedAvatar;
+  showScreen('home');
+});
+
+// ── Room helpers ──────────────────────────────────────────────────────────────
+function genRoomId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+// ── Create Room ───────────────────────────────────────────────────────────────
+document.getElementById('create-btn').addEventListener('click', async () => {
+  roomId     = genRoomId();
+  playerRole = "p1";
+
+  await set(ref(db, `rooms/${roomId}`), {
+    players:   { p1: myPlayerId },
+    playerInfo:{ p1: { name: playerName, avatar: playerAvatar } },
+    gameState: { status:"waiting", currentTurn:"p1", selectedNumbers:[0], winner:"" }
+  });
+
+  document.getElementById('display-room-code').innerText = roomId;
+  document.getElementById('waiting-label').innerText = 'Waiting for opponent…';
+  initSetupBoard();
+  showScreen('setup');
+  showChat();
+
+  // Listen for p2 info to appear so we can show their name
+  onValue(ref(db, `rooms/${roomId}/playerInfo`), snap => {
+    const info = snap.val();
+    if (info && info.p2) {
+      document.getElementById('p2-name').textContent   = info.p2.name;
+      document.getElementById('p2-avatar').textContent = info.p2.avatar;
+      document.getElementById('waiting-label').textContent = `${info.p2.name} joined!`;
+    }
+    if (info && info.p1) {
+      document.getElementById('p1-name').textContent   = info.p1.name;
+      document.getElementById('p1-avatar').textContent = info.p1.avatar;
+    }
+  });
+});
+
+// ── Join Room ─────────────────────────────────────────────────────────────────
+document.getElementById('join-btn').addEventListener('click', async () => {
+  const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+  if (!code) return;
+
+  const roomRef  = ref(db, `rooms/${code}`);
+  const snapshot = await get(roomRef);
+
+  if (snapshot.exists() && !snapshot.val().players.p2) {
+    roomId     = code;
+    playerRole = "p2";
+
+    await update(roomRef, {
+      'players/p2':          myPlayerId,
+      'playerInfo/p2/name':  playerName,
+      'playerInfo/p2/avatar':playerAvatar
+    });
+
+    // Grab p1 info for display
+    const info = snapshot.val().playerInfo || {};
+    document.getElementById('display-room-code').innerText = roomId;
+    document.getElementById('p1-name').textContent   = info.p1 ? info.p1.name   : 'P1';
+    document.getElementById('p1-avatar').textContent = info.p1 ? info.p1.avatar : '🎮';
+    document.getElementById('p2-name').textContent   = playerName;
+    document.getElementById('p2-avatar').textContent = playerAvatar;
+    document.getElementById('waiting-label').textContent = 'You joined!';
+
+    initSetupBoard();
+    showScreen('setup');
+    showChat();
+  } else {
+    const msg = document.getElementById('home-msg');
+    msg.textContent = "Room full or not found!";
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  }
+});
+
+// ── Setup Board ────────────────────────────────────────────────────────────────
+function initSetupBoard() {
+  const boardDiv = document.getElementById('setup-board');
+  boardDiv.innerHTML = '';
+  myBoard      = new Array(25).fill(null);
+  setupCounter = 1;
+  document.getElementById('setup-progress').style.width = '0%';
+  document.getElementById('ready-btn').disabled = true;
+
+  for (let i = 0; i < 25; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.idx = i;
+    cell.addEventListener('click', () => placeNumber(cell, i));
+    boardDiv.appendChild(cell);
+  }
+}
+
+function placeNumber(cell, idx) {
+  if (cell.dataset.filled || setupCounter > 25) return;
+  cell.textContent = setupCounter;
+  cell.dataset.filled = 'true';
+  myBoard[idx] = setupCounter;
+  setupCounter++;
+  document.getElementById('setup-progress').style.width = ((setupCounter-1)/25*100) + '%';
+  if (setupCounter > 25) document.getElementById('ready-btn').disabled = false;
+}
+
+// ── Shuffle (Random Arrange) ──────────────────────────────────────────────────
+document.getElementById('shuffle-btn').addEventListener('click', () => {
+  const nums = Array.from({length:25}, (_,i) => i+1);
+  // Fisher-Yates shuffle
+  for (let i = nums.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [nums[i],nums[j]] = [nums[j],nums[i]];
+  }
+  myBoard      = [...nums];
+  setupCounter = 26;
+  const cells  = document.querySelectorAll('#setup-board .cell');
+  cells.forEach((cell,i) => {
+    cell.textContent    = nums[i];
+    cell.dataset.filled = 'true';
+    cell.style.animation = 'none';
+    requestAnimationFrame(() => { cell.style.animation = ''; });
+  });
+  document.getElementById('setup-progress').style.width = '100%';
+  document.getElementById('ready-btn').disabled = false;
+});
+
+// ── Clear Board ───────────────────────────────────────────────────────────────
+document.getElementById('clear-btn').addEventListener('click', () => {
+  initSetupBoard();
+});
+
+// ── Ready ─────────────────────────────────────────────────────────────────────
+document.getElementById('ready-btn').addEventListener('click', async () => {
+  document.getElementById('ready-btn').disabled = true;
+  document.getElementById('ready-btn').textContent = '⏳ Waiting…';
+
+  await update(ref(db, `rooms/${roomId}/boards`), { [playerRole]: myBoard });
+
+  onValue(ref(db, `rooms/${roomId}/boards`), (snap) => {
+    const boards = snap.val();
+    if (boards && boards.p1 && boards.p2) {
+      update(ref(db, `rooms/${roomId}/gameState`), { status:"playing" });
+      startGame();
+    }
+  });
+});
+
+// ── Start Game ────────────────────────────────────────────────────────────────
+function startGame() {
+  if (winShown) return; // guard double-fire
+  winShown = false;
+  showScreen('game');
+  const boardDiv = document.getElementById('game-board');
+  boardDiv.innerHTML = '';
+
+  myBoard.forEach(num => {
+    const cell = document.createElement('div');
+    cell.className  = 'cell';
+    cell.textContent = num;
+    cell.id          = `cell-${num}`;
+    cell.addEventListener('click', () => handleNumberClick(num));
+    boardDiv.appendChild(cell);
+  });
+
+  // Real-time game state listener
+  onValue(ref(db, `rooms/${roomId}/gameState`), snap => {
+    const state = snap.val();
+    if (!state) return;
+
+    // Update turn indicator & player box highlights
+    const turnText = document.getElementById('turn-indicator');
+    document.getElementById('p1-box').classList.toggle('active-turn', state.currentTurn === 'p1');
+    document.getElementById('p2-box').classList.toggle('active-turn', state.currentTurn === 'p2');
+
+    if (state.winner && !winShown) {
+      winShown = true;
+      const iWon = state.winner === playerRole;
+      showWinOverlay(iWon);
+      turnText.innerText = '';
+      return;
+    }
+
+    turnText.innerText = state.currentTurn === playerRole ? 'Your Turn!' : "Opponent's Turn…";
+
+    if (state.selectedNumbers) {
+      state.selectedNumbers.forEach(num => {
+        if (num !== 0) {
+          const c = document.getElementById(`cell-${num}`);
+          if (c) c.classList.add('crossed');
         }
       });
-
-      // MutationObserver to catch innerText changes from script.js
-      const observer = new MutationObserver(() => {
-        setupBoard.querySelectorAll('.cell').forEach(cell => {
-          if (cell.innerText && !cell.dataset.filled) {
-            cell.dataset.filled = 'true';
-          }
-        });
-        const filled = setupBoard.querySelectorAll('[data-filled]').length;
-        progressFill.style.width = (filled / 25 * 100) + '%';
-      });
-
-      observer.observe(setupBoard, { subtree: true, characterData: true, childList: true });
+      checkWin(state.selectedNumbers);
     }
-  </script>
+  });
+}
 
+// ── Handle Click ──────────────────────────────────────────────────────────────
+async function handleNumberClick(num) {
+  const stateRef = ref(db, `rooms/${roomId}/gameState`);
+  const snap     = await get(stateRef);
+  const state    = snap.val();
+  if (state.currentTurn === playerRole && !state.winner && !state.selectedNumbers.includes(num)) {
+    const newSelected = [...state.selectedNumbers, num];
+    const nextTurn    = playerRole === "p1" ? "p2" : "p1";
+    await update(stateRef, { selectedNumbers: newSelected, currentTurn: nextTurn });
+  }
+}
+
+// ── Win Check ─────────────────────────────────────────────────────────────────
+function checkWin(selectedNumbers) {
+  const hits = myBoard.map(n => selectedNumbers.includes(n) ? 1 : 0);
+  let lines = 0;
+  for (let i = 0; i < 25; i += 5)
+    if (hits[i]&&hits[i+1]&&hits[i+2]&&hits[i+3]&&hits[i+4]) lines++;
+  for (let i = 0; i < 5; i++)
+    if (hits[i]&&hits[i+5]&&hits[i+10]&&hits[i+15]&&hits[i+20]) lines++;
+  if (hits[0]&&hits[6]&&hits[12]&&hits[18]&&hits[24]) lines++;
+  if (hits[4]&&hits[8]&&hits[12]&&hits[16]&&hits[20]) lines++;
+  if (lines >= 5) update(ref(db, `rooms/${roomId}/gameState`), { winner: playerRole });
+}
+
+// ── Win Overlay ───────────────────────────────────────────────────────────────
+const winPhrases = [
+  "Domination! 👑", "Flawless Victory! ⚡", "You're on fire! 🔥",
+  "GG! Absolutely lethal 🎯", "Champion energy! 💎"
+];
+const losePhrases = [
+  "So close… Try again 💪", "Next time you'll have it!", "Respect the grind 🤝" ];
+
+function showWinOverlay(iWon) {
+  const overlay = document.getElementById('win-overlay');
+  document.getElementById('win-title-text').textContent = iWon ? '🎉 YOU WIN!' : '😢 YOU LOSE';
+  document.getElementById('win-subtitle-text').textContent = iWon
+    ? winPhrases[Math.floor(Math.random()*winPhrases.length)]
+    : losePhrases[Math.floor(Math.random()*losePhrases.length)];
+  overlay.classList.add('show');
+  if (iWon) launchConfetti();
+}
+
+// ── Confetti ──────────────────────────────────────────────────────────────────
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#00e5ff','#ff3cac','#ffd166','#06ffa5','#ffffff','#ff6b6b'];
+  const pieces = Array.from({length:180}, () => ({
+    x:   Math.random() * canvas.width,
+    y:   Math.random() * canvas.height - canvas.height,
+    w:   6 + Math.random() * 8,
+    h:   10 + Math.random() * 14,
+    c:   colors[Math.floor(Math.random()*colors.length)],
+    r:   Math.random() * Math.PI * 2,
+    rd:  (Math.random() - 0.5) * 0.2,
+    vy:  3 + Math.random() * 5,
+    vx:  (Math.random()-0.5) * 3
+  }));
+
+  let frame;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.y  += p.vy;
+      p.x  += p.vx;
+      p.r  += p.rd;
+      p.vy += 0.08; // gravity
+      if (p.y > canvas.height) { p.y = -20; p.x = Math.random()*canvas.width; }
+      ctx.save();
+      ctx.translate(p.x + p.w/2, p.y + p.h/2);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.c;
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    frame = requestAnimationFrame(draw);
+  }
+  draw();
+  // Stop after 5 seconds
+  setTimeout(() => {
+    cancelAnimationFrame(frame);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, 5000);
+}
+
+// ── Restart / Reset ───────────────────────────────────────────────────────────
+async function doRestart() {
+  winShown = false;
+  document.getElementById('win-overlay').classList.remove('show');
+
+  // Reset game state in Firebase (keep same room & players)
+  await update(ref(db, `rooms/${roomId}/gameState`), {
+    status:"waiting", currentTurn:"p1", selectedNumbers:[0], winner:""
+  });
+  // Remove old boards so both players re-setup
+  await set(ref(db, `rooms/${roomId}/boards`), null);
+
+  initSetupBoard();
+  showScreen('setup');
+  document.getElementById('ready-btn').disabled  = true;
+  document.getElementById('ready-btn').textContent = '✓ I\'m Ready!';
+}
+
+function doReset() {
+  location.reload();
+}
+
+document.getElementById('win-restart-btn').addEventListener('click', doRestart);
+document.getElementById('win-reset-btn').addEventListener('click',   doReset);
+document.getElementById('restart-btn').addEventListener('click', doRestart);
+document.getElementById('reset-btn').addEventListener('click',   doReset);
+
+// ── Chat System ───────────────────────────────────────────────────────────────
+const CHAT_EMOJIS = ['👍','🔥','😂','😱','🎯','💀','🏆','😤','🤯','👏','😈','🫡'];
+
+function showChat() {
+  const fab = document.getElementById('chat-fab');
+  fab.style.display = 'flex';
+
+  // Render emoji buttons
+  const emojiBar = document.getElementById('chat-emojis');
+  emojiBar.innerHTML = '';
+  CHAT_EMOJIS.forEach(em => {
+    const btn = document.createElement('button');
+    btn.className   = 'emoji-btn';
+    btn.textContent = em;
+    btn.addEventListener('click', () => sendEmoji(em));
+    emojiBar.appendChild(btn);
+  });
+
+  // Listen to chat messages
+  onValue(ref(db, `rooms/${roomId}/chat`), snap => {
+    const msgs = snap.val();
+    if (!msgs) return;
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = '';
+    Object.values(msgs).slice(-30).forEach(m => {
+      const wrap   = document.createElement('div');
+      wrap.className = 'chat-msg' + (m.sender === playerRole ? ' mine' : '');
+      const bubble = document.createElement('div');
+      bubble.className   = 'chat-bubble';
+      bubble.textContent = m.emoji;
+      const sender = document.createElement('div');
+      sender.className   = 'chat-sender';
+      sender.textContent = m.senderName;
+      wrap.appendChild(bubble);
+      wrap.appendChild(sender);
+      container.appendChild(wrap);
+    });
+    container.scrollTop = container.scrollHeight;
+    // Show unread badge if chat closed
+    if (!chatOpen) {
+      document.getElementById('chat-badge').classList.add('show');
+    }
+  });
+}
+
+async function sendEmoji(emoji) {
+  await push(ref(db, `rooms/${roomId}/chat`), {
+    emoji,
+    sender:     playerRole,
+    senderName: playerName,
+    ts:         Date.now()
+  });
+}
+
+document.getElementById('chat-fab').addEventListener('click', () => {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+  if (chatOpen) {
+    document.getElementById('chat-badge').classList.remove('show');
+    document.getElementById('chat-messages').scrollTop = 9999;
+  }
+});
+
+</script>
 </body>
 </html>
