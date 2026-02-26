@@ -1,5 +1,5 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCPr1ZTE5450Qv1OhF2S13h12835sodmOw",
@@ -15,374 +15,148 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Global State
-let myUsername = "";
 let roomId = "";
-let playerRole = ""; 
-let opponentName = "";
-let myBoard = []; 
-let setupCounter = 1;
-let setupTimerInterval;
+let player = "";
+let board = [];
+let crossed = [];
+let timerInterval;
+let time = 20;
 
-let unsubscribeRoom = null;
-let unsubscribeGame = null;
+const lines = [
+  [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],
+  [15,16,17,18,19],[20,21,22,23,24],
+  [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],
+  [3,8,13,18,23],[4,9,14,19,24],
+  [0,6,12,18,24],[4,8,12,16,20]
+];
 
-const screens = {
-    login: document.getElementById('login-screen'),
-    home: document.getElementById('home-screen'),
-    setup: document.getElementById('setup-screen'),
-    game: document.getElementById('game-screen')
+window.createRoom = function() {
+  roomId = Math.random().toString(36).substring(2,7);
+  player = "player1";
+
+  set(ref(db, "rooms/" + roomId), {
+    player1: true,
+    player2: false,
+    selected: [],
+    turn: "player1",
+    winner: ""
+  });
+
+  startGame();
 };
 
-function showScreen(screenName) {
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[screenName].classList.add('active');
-}
+window.joinRoom = function() {
+  roomId = document.getElementById("roomInput").value;
+  player = "player2";
 
-function resetGameState() {
-    if (unsubscribeRoom) unsubscribeRoom();
-    if (unsubscribeGame) unsubscribeGame();
-    unsubscribeRoom = null;
-    unsubscribeGame = null;
+  update(ref(db, "rooms/" + roomId), {
+    player2: true
+  });
 
-    roomId = "";
-    playerRole = "";
-    opponentName = "";
-    myBoard = [];
-    setupCounter = 1;
-    clearInterval(setupTimerInterval);
+  startGame();
+};
 
-    document.getElementById('setup-board').innerHTML = '';
-    document.getElementById('game-board').innerHTML = '';
-    document.getElementById('ready-btn').disabled = true;
-    document.getElementById('ready-btn').innerText = "Ready";
-    document.getElementById('display-room-code').innerText = "";
-    document.getElementById('turn-indicator').innerText = "Waiting for opponent...";
-}
-
-// ==========================================
-// 1. LOGIN & LOGOUT SYSTEM
-// ==========================================
-document.getElementById('login-btn').addEventListener('click', async () => {
-    const userIn = document.getElementById('username-input').value.trim();
-    const passIn = document.getElementById('password-input').value.trim();
-    const msg = document.getElementById('login-msg');
-
-    if (!userIn || !passIn) {
-        msg.innerText = "Please enter both username and password.";
-        return;
-    }
-
-    const userRef = ref(db, `users/${userIn}`);
-    const snapshot = await get(userRef);
-
-    if (snapshot.exists()) {
-        if (snapshot.val().password === passIn) {
-            loginSuccess(userIn);
-        } else {
-            msg.innerText = "Incorrect password!";
-        }
-    } else {
-        await set(userRef, { password: passIn });
-        loginSuccess(userIn);
-    }
-});
-
-function loginSuccess(username) {
-    myUsername = username;
-    document.getElementById('welcome-text').innerText = `Welcome, ${myUsername}!`;
-    document.getElementById('login-msg').innerText = ""; 
-    loadHistory();
-    showScreen('home');
-}
-
-document.getElementById('logout-btn').addEventListener('click', () => {
-    resetGameState(); 
-    myUsername = ""; 
-    document.getElementById('username-input').value = "";
-    document.getElementById('password-input').value = "";
-    document.getElementById('find-user-result').innerText = "";
-    document.getElementById('find-user-input').value = "";
-    showScreen('login'); 
-});
-
-// ==========================================
-// 2. DASHBOARD
-// ==========================================
-document.getElementById('find-user-btn').addEventListener('click', async () => {
-    const searchName = document.getElementById('find-user-input').value.trim();
-    const resultText = document.getElementById('find-user-result');
-    if (!searchName) return;
-
-    const snapshot = await get(ref(db, `users/${searchName}`));
-    if (snapshot.exists()) {
-        resultText.innerText = `✅ Player '${searchName}' exists!`;
-        resultText.style.color = "#00ffcc";
-    } else {
-        resultText.innerText = `❌ Player not found.`;
-        resultText.style.color = "#ff3333";
-    }
-});
-
-function loadHistory() {
-    const historyList = document.getElementById('history-list');
-    onValue(ref(db, `users/${myUsername}/history`), (snapshot) => {
-        historyList.innerHTML = '';
-        if (snapshot.exists()) {
-            const matches = snapshot.val();
-            Object.values(matches).forEach(match => {
-                const li = document.createElement('li');
-                const resultClass = match.result === "Win" ? "win-text" : "lose-text";
-                li.innerHTML = `<span class="${resultClass}">${match.result}</span> vs ${match.opponent}`;
-                historyList.appendChild(li);
-            });
-        } else {
-            historyList.innerHTML = "<li>No matches played yet.</li>";
-        }
-    });
-}
-
-// ==========================================
-// 3. ROOM CREATION & JOINING
-// ==========================================
-document.getElementById('create-btn').addEventListener('click', async () => {
-    resetGameState(); 
-    roomId = Math.floor(1000 + Math.random() * 9000).toString();
-    playerRole = "p1";
-    
-    // FIX: Using an Object instead of an Array for perfect Firebase syncing
-    await set(ref(db, `rooms/${roomId}`), {
-        players: { p1: myUsername },
-        gameState: { status: "waiting", currentTurn: "p1", selected: { "init": true }, winner: "" }
-    });
-
-    document.getElementById('display-room-code').innerText = roomId;
-    initSetupBoard();
-    showScreen('setup');
-});
-
-document.getElementById('join-btn').addEventListener('click', async () => {
-    resetGameState(); 
-    const code = document.getElementById('room-code-input').value.trim();
-    if (!code) return;
-
-    const roomRef = ref(db, `rooms/${code}`);
-    const snapshot = await get(roomRef);
-
-    if (snapshot.exists() && !snapshot.val().players.p2) {
-        roomId = code;
-        playerRole = "p2";
-        opponentName = snapshot.val().players.p1; 
-        await update(roomRef, { [`players/p2`]: myUsername });
-        
-        document.getElementById('display-room-code').innerText = roomId;
-        initSetupBoard();
-        showScreen('setup');
-    } else {
-        alert("Room full or not found!");
-    }
-});
-
-// ==========================================
-// 4. SETUP PHASE
-// ==========================================
-function initSetupBoard() {
-    const boardDiv = document.getElementById('setup-board');
-    boardDiv.innerHTML = '';
-    myBoard = new Array(25).fill(null);
-    setupCounter = 1;
-    document.getElementById('ready-btn').disabled = true;
-    document.getElementById('ready-btn').innerText = "Ready";
-
-    for (let i = 0; i < 25; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.addEventListener('click', () => {
-            if (!cell.innerText && setupCounter <= 25) {
-                cell.innerText = setupCounter;
-                myBoard[i] = setupCounter;
-                setupCounter++;
-                if (setupCounter > 25) {
-                    document.getElementById('ready-btn').disabled = false;
-                }
-            }
-        });
-        boardDiv.appendChild(cell);
-    }
-    startSetupTimer();
-}
-
-function startSetupTimer() {
-    let timeLeft = 60;
-    const timerText = document.getElementById('setup-timer');
-    timerText.innerText = `${timeLeft}s`;
-
-    clearInterval(setupTimerInterval);
-    setupTimerInterval = setInterval(() => {
-        timeLeft--;
-        timerText.innerText = `${timeLeft}s`;
-
-        if (timeLeft <= 0) {
-            clearInterval(setupTimerInterval);
-            autoFillBoard();
-            document.getElementById('ready-btn').click(); 
-        }
-    }, 1000);
-}
-
-function autoFillBoard() {
-    const availableNumbers = [];
-    for (let i = 1; i <= 25; i++) {
-        if (!myBoard.includes(i)) availableNumbers.push(i);
-    }
-    availableNumbers.sort(() => Math.random() - 0.5);
-
-    const cells = document.getElementById('setup-board').children;
-    for (let i = 0; i < 25; i++) {
-        if (myBoard[i] === null) {
-            const num = availableNumbers.pop();
-            myBoard[i] = num;
-            cells[i].innerText = num;
-        }
-    }
-}
-
-document.getElementById('ready-btn').addEventListener('click', async () => {
-    clearInterval(setupTimerInterval);
-    document.getElementById('ready-btn').disabled = true;
-    document.getElementById('ready-btn').innerText = "Waiting for Opponent...";
-
-    await update(ref(db, `rooms/${roomId}/boards`), { [playerRole]: myBoard });
-    
-    unsubscribeRoom = onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
-        const data = snapshot.val();
-        if (data && data.boards && data.boards.p1 && data.boards.p2) {
-            if (playerRole === "p1") opponentName = data.players.p2;
-            
-            update(ref(db, `rooms/${roomId}/gameState`), { status: "playing" });
-            startGame();
-        }
-    });
-});
-
-// ==========================================
-// 5. GAME PHASE & WIN CINEMATICS
-// ==========================================
 function startGame() {
-    showScreen('game');
-    const boardDiv = document.getElementById('game-board');
-    boardDiv.innerHTML = '';
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  document.getElementById("roomCode").innerText = "Room: " + roomId;
 
-    myBoard.forEach((num) => {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.innerText = num;
-        cell.id = `cell-${num}`;
-        cell.addEventListener('click', () => handleNumberClick(num));
-        boardDiv.appendChild(cell);
+  generateBoard();
+  listenRoom();
+}
+
+function generateBoard() {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  board = [];
+
+  for (let i = 1; i <= 25; i++) {
+    board.push(i);
+  }
+
+  board.sort(() => Math.random() - 0.5);
+
+  board.forEach((num, index) => {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.innerText = num;
+    cell.onclick = () => selectNumber(num);
+    grid.appendChild(cell);
+  });
+}
+
+function selectNumber(num) {
+  const roomRef = ref(db, "rooms/" + roomId);
+
+  update(roomRef, {
+    selected: crossed.concat(num),
+    turn: player === "player1" ? "player2" : "player1"
+  });
+}
+
+function listenRoom() {
+  const roomRef = ref(db, "rooms/" + roomId);
+
+  onValue(roomRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    crossed = data.selected || [];
+    updateBoard();
+    updateTurn(data.turn);
+    checkWin(data.winner);
+  });
+}
+
+function updateBoard() {
+  const cells = document.querySelectorAll(".cell");
+  cells.forEach((cell) => {
+    const num = parseInt(cell.innerText);
+    if (crossed.includes(num)) {
+      cell.classList.add(player === "player1" ? "red" : "blue");
+    }
+  });
+}
+
+function updateTurn(currentTurn) {
+  document.getElementById("turnText").innerText =
+    currentTurn === player ? "Your Turn" : "Opponent Turn";
+
+  if (currentTurn === player) startTimer();
+}
+
+function startTimer() {
+  time = 20;
+  document.getElementById("timer").innerText = time;
+  clearInterval(timerInterval);
+
+  timerInterval = setInterval(() => {
+    time--;
+    document.getElementById("timer").innerText = time;
+
+    if (time <= 0) {
+      clearInterval(timerInterval);
+    }
+  }, 1000);
+}
+
+function checkWin(winner) {
+  let count = 0;
+
+  lines.forEach(line => {
+    if (line.every(i => crossed.includes(board[i]))) {
+      count++;
+    }
+  });
+
+  if (count >= 5) {
+    update(ref(db, "rooms/" + roomId), {
+      winner: player
     });
+    alert("You Win!");
+  }
 
-    unsubscribeGame = onValue(ref(db, `rooms/${roomId}/gameState`), (snapshot) => {
-        const state = snapshot.val();
-        if (!state) return;
-
-        const turnText = document.getElementById('turn-indicator');
-        
-        if (state.winner) {
-            triggerEndGame(state.winner === playerRole);
-            return; 
-        }
-
-        if (state.currentTurn === playerRole) {
-            turnText.innerText = "Your Turn!";
-            turnText.style.color = "#00ffcc";
-        } else {
-            turnText.innerText = `${opponentName}'s Turn...`;
-            turnText.style.color = "#aaaaaa";
-        }
-
-        // FIX: Reading the reliable Firebase Object instead of an Array
-        if (state.selected) {
-            Object.keys(state.selected).forEach(numStr => {
-                if (numStr !== "init") { 
-                    const cell = document.getElementById(`cell-${numStr}`);
-                    if (cell) cell.classList.add('crossed');
-                }
-            });
-            
-            // Convert back to array just for the Win Checker logic
-            const pickedNumbersArray = Object.keys(state.selected)
-                .filter(k => k !== "init")
-                .map(Number);
-                
-            checkWin(pickedNumbersArray);
-        }
-    });
+  if (winner && winner !== player) {
+    alert("You Lose!");
+  }
 }
-
-async function handleNumberClick(num) {
-    const stateRef = ref(db, `rooms/${roomId}/gameState`);
-    const snapshot = await get(stateRef);
-    const state = snapshot.val();
-
-    // STRICT CHECK: Ensure it is my turn, game isn't over, and this specific number key doesn't exist yet
-    if (state.currentTurn === playerRole && !state.winner && !(state.selected && state.selected[num])) {
-        const nextTurn = playerRole === "p1" ? "p2" : "p1";
-        
-        // Push the update directly to the number's unique path in Firebase
-        await update(stateRef, {
-            [`selected/${num}`]: true,
-            currentTurn: nextTurn
-        });
-    }
-}
-
-function checkWin(pickedNumbersArray) {
-    const hits = myBoard.map(num => pickedNumbersArray.includes(num) ? 1 : 0);
-    let lines = 0;
-
-    for (let i = 0; i < 25; i += 5) if (hits[i] && hits[i+1] && hits[i+2] && hits[i+3] && hits[i+4]) lines++;
-    for (let i = 0; i < 5; i++) if (hits[i] && hits[i+5] && hits[i+10] && hits[i+15] && hits[i+20]) lines++;
-    if (hits[0] && hits[6] && hits[12] && hits[18] && hits[24]) lines++;
-    if (hits[4] && hits[8] && hits[12] && hits[16] && hits[20]) lines++;
-
-    if (lines >= 5) {
-        update(ref(db, `rooms/${roomId}/gameState`), { winner: playerRole });
-    }
-}
-
-// ==========================================
-// 6. END GAME & HISTORY RECORDING
-// ==========================================
-let hasRecordedHistory = false; 
-
-async function triggerEndGame(didIWin) {
-    const overlay = document.getElementById('result-overlay');
-    const resultText = document.getElementById('result-text');
-    
-    overlay.classList.remove('hidden');
-
-    if (didIWin) {
-        resultText.innerText = "🎉 YOU WIN!";
-        resultText.className = "anim-win";
-    } else {
-        resultText.innerText = "😢 YOU LOSE";
-        resultText.className = "anim-lose";
-    }
-
-    if (!hasRecordedHistory) {
-        hasRecordedHistory = true;
-        await push(ref(db, `users/${myUsername}/history`), {
-            opponent: opponentName,
-            result: didIWin ? "Win" : "Loss"
-        });
-    }
-}
-
-document.getElementById('home-btn').addEventListener('click', () => {
-    document.getElementById('result-overlay').classList.add('hidden');
-    hasRecordedHistory = false; 
-    resetGameState(); 
-    showScreen('home');
-});
-                                                          
