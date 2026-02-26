@@ -1,64 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DiNGo</title>
-    <link rel="stylesheet" href="style.css?v=3">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#121212">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DiNGo</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="login-screen" class="screen active">
-        <h1>DiNGo</h1>
-        <p>Login or Register</p>
-        <input type="text" id="username-input" placeholder="Enter Username">
-        <input type="password" id="password-input" placeholder="Enter Password">
-        <button id="login-btn" class="btn primary">Login / Create Account</button>
-        <p id="login-msg" class="error-text"></p>
-    </div>
 
-    <div id="home-screen" class="screen">
-        <h1 id="welcome-text">Welcome!</h1>
-        
-        <button id="create-btn" class="btn primary">Create Room</button>
-        <div class="join-section">
-            <input type="text" id="room-code-input" placeholder="Enter Room Code">
-            <button id="join-btn" class="btn secondary">Join Room</button>
-        </div>
+<div class="home" id="home">
+  <h1>DiNGo</h1>
+  <button onclick="createRoom()">Create Room</button>
+  <input id="roomInput" placeholder="Enter Room Code">
+  <button onclick="joinRoom()">Join Room</button>
+</div>
 
-        <div class="search-section">
-            <input type="text" id="find-user-input" placeholder="Find Player by Username">
-            <button id="find-user-btn" class="btn outline">Find Player</button>
-            <p id="find-user-result"></p>
-        </div>
+<div class="game hidden" id="game">
+  <h3 id="roomCode"></h3>
+  <h3 id="turnText"></h3>
+  <h3>Timer: <span id="timer">20</span></h3>
+  <div class="grid" id="grid"></div>
+</div>
 
-        <div class="history-section">
-            <h3>Match History</h3>
-            <ul id="history-list"></ul>
-        </div>
-
-        <button id="logout-btn" class="btn" style="background-color: #333; color: #fff; margin-top: 20px;">Logout</button>
-    </div>
-
-    <div id="setup-screen" class="screen">
-        <h2>Setup Board</h2>
-        <p id="setup-timer" class="timer-text">60s</p>
-        <p>Room Code: <strong id="display-room-code"></strong></p>
-        <div id="setup-board" class="board"></div>
-        <button id="ready-btn" class="btn primary" disabled>Ready</button>
-    </div>
-
-    <div id="game-screen" class="screen">
-        <h2 id="turn-indicator">Waiting for opponent...</h2>
-        <div id="game-board" class="board"></div>
-    </div>
-
-    <div id="result-overlay" class="overlay hidden">
-        <h1 id="result-text"></h1>
-        <button id="home-btn" class="btn primary">Back to Home</button>
-    </div>
-
-    <script type="module" src="script.js?v=2"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
