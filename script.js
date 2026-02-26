@@ -41,7 +41,9 @@ function showScreen(screenName) {
 // ROOM CREATION & JOINING
 // ==========================================
 document.getElementById('create-btn').addEventListener('click', async () => {
-    roomId = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit code
+    // Generate a 4-character alphanumeric room code (e.g. "A3K9")
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    roomId = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     playerRole = "p1";
     
     // Create room in Firebase
@@ -209,4 +211,5 @@ function checkWin(selectedNumbers) {
         // I won! Tell Firebase.
         update(ref(db, `rooms/${roomId}/gameState`), { winner: playerRole });
     }
-}
+            }
+               
