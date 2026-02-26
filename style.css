@@ -14,14 +14,27 @@ input { width: 100%; padding: 15px; text-align: center; font-size: 18px; border-
 
 /* 5x5 Board Grid */
 .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: 100%; max-width: 350px; margin-top: 20px; }
-.cell { background-color: #2a2a2a; border-radius: 5px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+
+/* BASE CELL */
+.cell { 
+    background-color: #2a2a2a; 
+    border-radius: 5px; 
+    aspect-ratio: 1/1; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 20px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: 0.2s; 
+    border: 2px solid transparent; 
+    position: relative; /* Needed for the X */
+}
 .cell:active { transform: scale(0.95); }
 
-/* Game States */
-.cell.crossed { background-color: #1a1a1a; color: #555; text-decoration: line-through; border-color: #ff007f; }
 #turn-indicator { font-size: 22px; margin-bottom: 10px; color: #00ffcc; }
 
-/* --- NEW UI ELEMENTS --- */
+/* UI ELEMENTS */
 .error-text { color: #ff3333; margin-top: 10px; font-size: 14px; }
 .timer-text { font-size: 24px; font-weight: bold; color: #ff007f; margin: 10px 0; }
 .outline { background: transparent; border: 2px solid #00ffcc; color: #00ffcc; }
@@ -31,36 +44,46 @@ input { width: 100%; padding: 15px; text-align: center; font-size: 18px; border-
 .win-text { color: #00ffcc; font-weight: bold; }
 .lose-text { color: #ff3333; font-weight: bold; }
 
-/* --- CINEMATIC WIN/LOSS OVERLAY --- */
+/* WIN/LOSS OVERLAY */
 .overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
 .overlay.hidden { display: none; }
 #result-text { font-size: 50px; margin-bottom: 30px; text-transform: uppercase; text-shadow: 0 0 20px currentColor; }
 
-/* Winner Animation: Neon Pulse & Scale */
-.anim-win {
-    color: #00ffcc;
-    animation: winPulse 1s infinite alternate, popIn 0.5s ease-out;
+.anim-win { color: #00ffcc; animation: winPulse 1s infinite alternate, popIn 0.5s ease-out; }
+@keyframes winPulse { 0% { transform: scale(1); text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc; } 100% { transform: scale(1.1); text-shadow: 0 0 20px #00ffcc, 0 0 40px #00ffcc, 0 0 60px #fff; } }
+@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+.anim-lose { color: #ff3333; animation: shake 0.5s ease-in-out, fadeGray 2s forwards; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px) rotate(-5deg); } 50% { transform: translateX(10px) rotate(5deg); } 75% { transform: translateX(-10px) rotate(-5deg); } }
+@keyframes fadeGray { 100% { filter: grayscale(100%); opacity: 0.8; } }
+
+/* ========================================= */
+/* ❌ CROSS MARKS (THE FIX) ❌              */
+/* ========================================= */
+
+/* This draws the actual X lines over the box */
+.cell.crossed-p1::before, .cell.crossed-p1::after,
+.cell.crossed-p2::before, .cell.crossed-p2::after {
+    content: "";
+    position: absolute;
+    width: 85%;
+    height: 4px;
+    background-color: currentColor;
+    border-radius: 2px;
 }
-@keyframes winPulse {
-    0% { transform: scale(1); text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc; }
-    100% { transform: scale(1.1); text-shadow: 0 0 20px #00ffcc, 0 0 40px #00ffcc, 0 0 60px #fff; }
-}
-@keyframes popIn {
-    0% { transform: scale(0); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+.cell.crossed-p1::before, .cell.crossed-p2::before { transform: rotate(45deg); }
+.cell.crossed-p1::after, .cell.crossed-p2::after { transform: rotate(-45deg); }
+
+/* Player 1 Colors (Red) */
+.cell.crossed-p1 { 
+    background-color: #2a0808; 
+    color: #ff3333; 
+    border-color: #ff3333; 
 }
 
-/* Loser Animation: Grayscale & Shake */
-.anim-lose {
-    color: #ff3333;
-    animation: shake 0.5s ease-in-out, fadeGray 2s forwards;
-}
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-10px) rotate(-5deg); }
-    50% { transform: translateX(10px) rotate(5deg); }
-    75% { transform: translateX(-10px) rotate(-5deg); }
-}
-@keyframes fadeGray {
-    100% { filter: grayscale(100%); opacity: 0.8; }
+/* Player 2 Colors (Blue) */
+.cell.crossed-p2 { 
+    background-color: #081a2a; 
+    color: #33ccff; 
+    border-color: #33ccff; 
 }
