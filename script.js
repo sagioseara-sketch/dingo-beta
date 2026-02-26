@@ -24,7 +24,6 @@ let myBoard = [];
 let setupCounter = 1;
 let setupTimerInterval;
 
-// Store active Firebase listeners so we can turn them off later
 let unsubscribeRoom = null;
 let unsubscribeGame = null;
 
@@ -40,17 +39,12 @@ function showScreen(screenName) {
     screens[screenName].classList.add('active');
 }
 
-// ==========================================
-// GAME RESET FUNCTION (THE FIX)
-// ==========================================
 function resetGameState() {
-    // 1. Turn off old Firebase listeners
     if (unsubscribeRoom) unsubscribeRoom();
     if (unsubscribeGame) unsubscribeGame();
     unsubscribeRoom = null;
     unsubscribeGame = null;
 
-    // 2. Wipe the game variables clean
     roomId = "";
     playerRole = "";
     opponentName = "";
@@ -58,7 +52,6 @@ function resetGameState() {
     setupCounter = 1;
     clearInterval(setupTimerInterval);
 
-    // 3. Reset the UI buttons & text
     document.getElementById('setup-board').innerHTML = '';
     document.getElementById('game-board').innerHTML = '';
     document.getElementById('ready-btn').disabled = true;
@@ -68,7 +61,7 @@ function resetGameState() {
 }
 
 // ==========================================
-// 1. LOGIN SYSTEM
+// 1. LOGIN & LOGOUT SYSTEM
 // ==========================================
 document.getElementById('login-btn').addEventListener('click', async () => {
     const userIn = document.getElementById('username-input').value.trim();
@@ -98,12 +91,23 @@ document.getElementById('login-btn').addEventListener('click', async () => {
 function loginSuccess(username) {
     myUsername = username;
     document.getElementById('welcome-text').innerText = `Welcome, ${myUsername}!`;
+    document.getElementById('login-msg').innerText = ""; 
     loadHistory();
     showScreen('home');
 }
 
+document.getElementById('logout-btn').addEventListener('click', () => {
+    resetGameState(); 
+    myUsername = ""; 
+    document.getElementById('username-input').value = "";
+    document.getElementById('password-input').value = "";
+    document.getElementById('find-user-result').innerText = "";
+    document.getElementById('find-user-input').value = "";
+    showScreen('login'); 
+});
+
 // ==========================================
-// 2. DASHBOARD (FIND USER & HISTORY)
+// 2. DASHBOARD
 // ==========================================
 document.getElementById('find-user-btn').addEventListener('click', async () => {
     const searchName = document.getElementById('find-user-input').value.trim();
@@ -142,13 +146,14 @@ function loadHistory() {
 // 3. ROOM CREATION & JOINING
 // ==========================================
 document.getElementById('create-btn').addEventListener('click', async () => {
-    resetGameState(); // Ensure clean slate before creating
+    resetGameState(); 
     roomId = Math.floor(1000 + Math.random() * 9000).toString();
     playerRole = "p1";
     
+    // FIX: Using "init" instead of "0" to prevent Firebase array bugs
     await set(ref(db, `rooms/${roomId}`), {
         players: { p1: myUsername },
-        gameState: { status: "waiting", currentTurn: "p1", selected: { "0": "system" }, winner: "" }
+        gameState: { status: "waiting", currentTurn: "p1", selected: { "init": "system" }, winner: "" }
     });
 
     document.getElementById('display-room-code').innerText = roomId;
@@ -157,7 +162,7 @@ document.getElementById('create-btn').addEventListener('click', async () => {
 });
 
 document.getElementById('join-btn').addEventListener('click', async () => {
-    resetGameState(); // Ensure clean slate before joining
+    resetGameState(); 
     const code = document.getElementById('room-code-input').value.trim();
     if (!code) return;
 
@@ -249,7 +254,6 @@ document.getElementById('ready-btn').addEventListener('click', async () => {
 
     await update(ref(db, `rooms/${roomId}/boards`), { [playerRole]: myBoard });
     
-    // Save the listener so we can unsubscribe later
     unsubscribeRoom = onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
         const data = snapshot.val();
         if (data && data.boards && data.boards.p1 && data.boards.p2) {
@@ -278,7 +282,6 @@ function startGame() {
         boardDiv.appendChild(cell);
     });
 
-    // Save the listener so we can unsubscribe later
     unsubscribeGame = onValue(ref(db, `rooms/${roomId}/gameState`), (snapshot) => {
         const state = snapshot.val();
         if (!state) return;
@@ -298,16 +301,25 @@ function startGame() {
             turnText.style.color = "#aaaaaa";
         }
 
+        // FIX: Rebuilding how we read the crosses to be 100% bug-free
         if (state.selected) {
-            Object.keys(state.selected).forEach(numStr => {
-                if (numStr !== "0") { 
-                    const num = parseInt(numStr);
-                    const playerWhoPicked = state.selected[numStr]; 
+            Object.keys(state.selected).forEach(key => {
+                if (key !== "init") { 
+                    const num = parseInt(key.replace('n', '')); // Strip the "n" off the front
+                    const playerWhoPicked = state.selected[key]; 
                     const cell = document.getElementById(`cell-${num}`);
-                    if (cell) cell.classList.add(`crossed-${playerWhoPicked}`);
+                    if (cell) {
+                        // Add the correct Red or Blue CSS class
+                        cell.classList.add(`crossed-${playerWhoPicked}`);
+                    }
                 }
             });
-            const pickedNumbersArray = Object.keys(state.selected).map(Number);
+            
+            // Build the array for the Win Checker
+            const pickedNumbersArray = Object.keys(state.selected)
+                .filter(k => k !== "init")
+                .map(k => parseInt(k.replace('n', '')));
+                
             checkWin(pickedNumbersArray);
         }
     });
@@ -318,10 +330,13 @@ async function handleNumberClick(num) {
     const snapshot = await get(stateRef);
     const state = snapshot.val();
 
-    if (state.currentTurn === playerRole && !state.winner && !(state.selected && state.selected[num])) {
+    // FIX: Prepend "n" to the number so Firebase treats it as a string instead of an array index
+    const key = `n${num}`;
+
+    if (state.currentTurn === playerRole && !state.winner && !(state.selected && state.selected[key])) {
         const nextTurn = playerRole === "p1" ? "p2" : "p1";
         await update(stateRef, {
-            [`selected/${num}`]: playerRole,
+            [`selected/${key}`]: playerRole,
             currentTurn: nextTurn
         });
     }
@@ -371,8 +386,7 @@ async function triggerEndGame(didIWin) {
 
 document.getElementById('home-btn').addEventListener('click', () => {
     document.getElementById('result-overlay').classList.add('hidden');
-    hasRecordedHistory = false; // reset the history lock
-    resetGameState(); // WIPE EVERYTHING CLEAN
+    hasRecordedHistory = false; 
+    resetGameState(); 
     showScreen('home');
 });
-                                                
