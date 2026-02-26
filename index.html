@@ -1,37 +1,681 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DiNGo</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#121212">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BINGO — Live Multiplayer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─────────────────────────────────────────
+       DESIGN TOKENS
+    ───────────────────────────────────────── */
+    :root {
+      --bg:        #080c14;
+      --surface:   #0e1623;
+      --border:    rgba(255,255,255,0.07);
+      --accent:    #00e5ff;
+      --accent2:   #ff3cac;
+      --gold:      #ffd166;
+      --text:      #e8edf5;
+      --muted:     #5a6a82;
+      --cell-size: clamp(48px, 10vw, 68px);
+      --radius:    14px;
+      --glow:      0 0 24px rgba(0,229,255,0.35);
+      --glow2:     0 0 24px rgba(255,60,172,0.35);
+    }
+
+    /* ─────────────────────────────────────────
+       RESET & BASE
+    ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Animated mesh background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 30%, rgba(0,229,255,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 80% 70%, rgba(255,60,172,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255,209,102,0.04) 0%, transparent 70%);
+      animation: meshDrift 18s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Floating grid dots */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 36px 36px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes meshDrift {
+      0%   { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(3%, 4%) rotate(3deg); }
+    }
+
+    /* ─────────────────────────────────────────
+       SCREEN SYSTEM
+    ───────────────────────────────────────── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(18px) scale(0.98);
+      transition: opacity 0.45s cubic-bezier(.4,0,.2,1),
+                  transform 0.45s cubic-bezier(.4,0,.2,1);
+      z-index: 1;
+    }
+
+    .screen.active {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0) scale(1);
+    }
+
+    /* ─────────────────────────────────────────
+       CARD CONTAINER
+    ───────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 40px 44px;
+      width: 100%;
+      max-width: 460px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 32px 80px rgba(0,0,0,0.55),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    /* Card top accent line */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    /* ─────────────────────────────────────────
+       LOGO / TITLE
+    ───────────────────────────────────────── */
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(52px, 10vw, 72px);
+      letter-spacing: 10px;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { filter: drop-shadow(0 0 12px rgba(0,229,255,0.4)); }
+      50%       { filter: drop-shadow(0 0 24px rgba(255,60,172,0.5)); }
+    }
+
+    .tagline {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 4px;
+      margin-bottom: 36px;
+    }
+
+    /* ─────────────────────────────────────────
+       DIVIDER
+    ───────────────────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─────────────────────────────────────────
+       INPUTS
+    ───────────────────────────────────────── */
+    .input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 16px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="text"]::placeholder {
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: none;
+      font-size: 14px;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,255,0.12);
+    }
+
+    /* ─────────────────────────────────────────
+       BUTTONS
+    ───────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 24px;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.08);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover::after { opacity: 1; }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #0088ff);
+      color: #000;
+      box-shadow: 0 4px 20px rgba(0,229,255,0.3);
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 28px rgba(0,229,255,0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .btn-secondary:hover { border-color: var(--accent); }
+
+    .btn-ready {
+      background: linear-gradient(135deg, var(--accent2), #8b00ff);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(255,60,172,0.3);
+      width: 100%;
+      font-size: 15px;
+      padding: 15px;
+    }
+
+    .btn-ready:hover {
+      box-shadow: 0 6px 28px rgba(255,60,172,0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* ─────────────────────────────────────────
+       ROOM CODE BADGE
+    ───────────────────────────────────────── */
+    .room-badge {
+      background: rgba(0,229,255,0.07);
+      border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .room-badge-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .room-badge-code {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 8px;
+      color: var(--accent);
+      text-shadow: var(--glow);
+    }
+
+    .waiting-pulse {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.2; transform: scale(0.8); }
+      50%       { opacity: 1;   transform: scale(1.2); }
+    }
+
+    /* ─────────────────────────────────────────
+       SECTION TITLE
+    ───────────────────────────────────────── */
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      letter-spacing: 4px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .section-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* ─────────────────────────────────────────
+       BINGO BOARD — SHARED
+    ───────────────────────────────────────── */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, var(--cell-size));
+      grid-template-rows: repeat(5, var(--cell-size));
+      gap: 8px;
+      margin: 0 auto 28px;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(18px, 3.5vw, 24px);
+      letter-spacing: 1px;
+      color: var(--text);
+      cursor: pointer;
+      transition:
+        background 0.2s,
+        border-color 0.2s,
+        transform 0.15s,
+        box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Setup phase: empty cell hover */
+    #setup-board .cell:not([data-filled]):hover {
+      background: rgba(0,229,255,0.06);
+      border-color: rgba(0,229,255,0.3);
+      transform: scale(1.05);
+    }
+
+    /* Setup phase: filled cell */
+    #setup-board .cell[data-filled] {
+      background: rgba(0,229,255,0.08);
+      border-color: rgba(0,229,255,0.3);
+      color: var(--accent);
+      animation: cellPop 0.25s cubic-bezier(.17,.67,.35,1.4);
+    }
+
+    @keyframes cellPop {
+      0%   { transform: scale(0.7); opacity: 0; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* Game phase: normal hover */
+    #game-board .cell:not(.crossed):hover {
+      background: rgba(255,209,102,0.08);
+      border-color: rgba(255,209,102,0.3);
+      transform: scale(1.06);
+      box-shadow: 0 0 16px rgba(255,209,102,0.2);
+    }
+
+    /* Crossed cell */
+    .cell.crossed {
+      background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(255,60,172,0.15));
+      border-color: var(--accent);
+      cursor: default;
+      animation: crossPop 0.35s cubic-bezier(.17,.67,.35,1.4);
+    }
+
+    .cell.crossed::after {
+      content: '✕';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4em;
+      color: var(--accent);
+      text-shadow: var(--glow);
+      opacity: 0.5;
+    }
+
+    @keyframes crossPop {
+      0%   { transform: scale(1.25); }
+      60%  { transform: scale(0.92); }
+      100% { transform: scale(1); }
+    }
+
+    /* ─────────────────────────────────────────
+       TURN INDICATOR
+    ───────────────────────────────────────── */
+    #turn-indicator {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(20px, 4vw, 28px);
+      letter-spacing: 4px;
+      text-align: center;
+      margin-bottom: 20px;
+      min-height: 36px;
+      transition: color 0.3s;
+      animation: fadeSlideIn 0.4s ease;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─────────────────────────────────────────
+       SETUP PROGRESS
+    ───────────────────────────────────────── */
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 999px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    /* ─────────────────────────────────────────
+       ERROR / MESSAGE TEXT
+    ───────────────────────────────────────── */
+    #home-msg {
+      min-height: 20px;
+      font-size: 13px;
+      color: var(--accent2);
+      text-align: center;
+      margin-top: 14px;
+      letter-spacing: 0.5px;
+      animation: fadeSlideIn 0.3s ease;
+    }
+
+    /* ─────────────────────────────────────────
+       GAME SCREEN LAYOUT OVERRIDE
+       (wider card for the 5×5 board)
+    ───────────────────────────────────────── */
+    #game-screen .card {
+      max-width: 520px;
+      padding: 32px 36px;
+    }
+
+    /* ─────────────────────────────────────────
+       SCROLLABLE CARD INNER (mobile safety)
+    ───────────────────────────────────────── */
+    .card-inner {
+      max-height: 90vh;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .card-inner::-webkit-scrollbar { display: none; }
+
+    /* ─────────────────────────────────────────
+       RESPONSIVE
+    ───────────────────────────────────────── */
+    @media (max-width: 520px) {
+      :root { --cell-size: 52px; }
+      .card { padding: 28px 20px; }
+      .board { gap: 5px; }
+    }
+  </style>
 </head>
 <body>
-    <div id="home-screen" class="screen active">
-        <h1>DiNGo</h1>
-        <button id="create-btn" class="btn primary">Create Room</button>
-        <div class="join-section">
-            <input type="text" id="room-code-input" placeholder="Enter Room Code">
-            <button id="join-btn" class="btn secondary">Join Room</button>
+
+  <!-- ══════════════════════════════════════════
+       HOME SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="home-screen" class="screen active">
+    <div class="card">
+      <div class="card-inner">
+        <div class="logo">BINGO</div>
+        <p class="tagline">Multiplayer · Live · Real-time</p>
+
+        <!-- Create Room -->
+        <button id="create-btn" class="btn btn-primary">
+          ＋ &nbsp;Create Room
+        </button>
+
+        <div class="divider">or join</div>
+
+        <!-- Join Room -->
+        <div class="input-group">
+          <input
+            id="room-code-input"
+            type="text"
+            maxlength="4"
+            placeholder="Enter code e.g. A3K9"
+          />
+          <button id="join-btn" class="btn btn-secondary">Join</button>
         </div>
+
         <p id="home-msg"></p>
+      </div>
     </div>
+  </div>
 
-    <div id="setup-screen" class="screen">
-        <h2>Setup Board</h2>
-        <p>Tap boxes to fill 1 to 25</p>
-        <p>Room Code: <strong id="display-room-code"></strong></p>
-        <div id="setup-board" class="board"></div>
-        <button id="ready-btn" class="btn primary" disabled>Ready</button>
+
+  <!-- ══════════════════════════════════════════
+       SETUP SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="setup-screen" class="screen">
+    <div class="card">
+      <div class="card-inner">
+
+        <!-- Room badge -->
+        <div class="room-badge">
+          <div>
+            <div class="room-badge-label">Room Code</div>
+            <div class="room-badge-code" id="display-room-code">——</div>
+            <div class="waiting-pulse">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span>Waiting for opponent</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Arrange Your Board</div>
+        <p class="section-sub">Click each cell to place numbers 1 → 25 in any order you like.</p>
+
+        <!-- Progress bar -->
+        <div class="progress-bar">
+          <div class="progress-fill" id="setup-progress"></div>
+        </div>
+
+        <!-- 5×5 Setup Grid -->
+        <div class="board" id="setup-board"></div>
+
+        <button id="ready-btn" class="btn btn-ready" disabled>
+          ✓ &nbsp;I'm Ready!
+        </button>
+
+      </div>
     </div>
+  </div>
 
-    <div id="game-screen" class="screen">
-        <h2 id="turn-indicator">Waiting for opponent...</h2>
-        <div id="game-board" class="board"></div>
+
+  <!-- ══════════════════════════════════════════
+       GAME SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="game-screen" class="screen">
+    <div class="card">
+      <div class="card-inner">
+
+        <div class="logo" style="font-size:36px; letter-spacing:6px; margin-bottom:4px;">BINGO</div>
+
+        <!-- Turn indicator -->
+        <div id="turn-indicator">Loading…</div>
+
+        <!-- 5×5 Game Board -->
+        <div class="board" id="game-board"></div>
+
+      </div>
     </div>
+  </div>
 
-    <script type="module" src="script.js"></script>
+
+  <!-- ══════════════════════════════════════════
+       JS (must be type="module" for Firebase imports)
+  ══════════════════════════════════════════ -->
+  <script type="module" src="script.js"></script>
+
+  <!-- Progress bar sync with setupCounter -->
+  <script type="module">
+    /*
+      We patch the setup board's cell click handler to also update
+      the visual progress bar whenever a number is placed.
+      This is purely cosmetic and does NOT modify script.js logic.
+    */
+    const setupBoard = document.getElementById('setup-board');
+    const progressFill = document.getElementById('setup-progress');
+
+    if (setupBoard && progressFill) {
+      setupBoard.addEventListener('click', (e) => {
+        const cell = e.target.closest('.cell');
+        if (!cell || cell.dataset.filled) return;
+
+        // Count currently filled cells after this click
+        requestAnimationFrame(() => {
+          const filled = setupBoard.querySelectorAll('[data-filled]').length;
+          progressFill.style.width = (filled / 25 * 100) + '%';
+        });
+
+        // Mark cell as filled so CSS can style it
+        if (cell.innerText) {
+          cell.dataset.filled = 'true';
+          requestAnimationFrame(() => {
+            const filled = setupBoard.querySelectorAll('[data-filled]').length;
+            progressFill.style.width = (filled / 25 * 100) + '%';
+          });
+        }
+      });
+
+      // MutationObserver to catch innerText changes from script.js
+      const observer = new MutationObserver(() => {
+        setupBoard.querySelectorAll('.cell').forEach(cell => {
+          if (cell.innerText && !cell.dataset.filled) {
+            cell.dataset.filled = 'true';
+          }
+        });
+        const filled = setupBoard.querySelectorAll('[data-filled]').length;
+        progressFill.style.width = (filled / 25 * 100) + '%';
+      });
+
+      observer.observe(setupBoard, { subtree: true, characterData: true, childList: true });
+    }
+  </script>
+
 </body>
 </html>
