@@ -211,5 +211,4 @@ function checkWin(selectedNumbers) {
         // I won! Tell Firebase.
         update(ref(db, `rooms/${roomId}/gameState`), { winner: playerRole });
     }
-            }
-               
+}
