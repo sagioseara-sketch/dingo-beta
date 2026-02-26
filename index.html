@@ -1,26 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DiNGo</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DiNGo</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
 </head>
 <body>
+    <div id="home-screen" class="screen active">
+        <h1>DiNGo</h1>
+        <button id="create-btn" class="btn primary">Create Room</button>
+        <div class="join-section">
+            <input type="text" id="room-code-input" placeholder="Enter Room Code">
+            <button id="join-btn" class="btn secondary">Join Room</button>
+        </div>
+        <p id="home-msg"></p>
+    </div>
 
-<div class="home" id="home">
-  <h1>DiNGo</h1>
-  <button onclick="createRoom()">Create Room</button>
-  <input id="roomInput" placeholder="Enter Room Code">
-  <button onclick="joinRoom()">Join Room</button>
-</div>
+    <div id="setup-screen" class="screen">
+        <h2>Setup Board</h2>
+        <p>Tap boxes to fill 1 to 25</p>
+        <p>Room Code: <strong id="display-room-code"></strong></p>
+        <div id="setup-board" class="board"></div>
+        <button id="ready-btn" class="btn primary" disabled>Ready</button>
+    </div>
 
-<div class="game hidden" id="game">
-  <h3 id="roomCode"></h3>
-  <h3 id="turnText"></h3>
-  <h3>Timer: <span id="timer">20</span></h3>
-  <div class="grid" id="grid"></div>
-</div>
+    <div id="game-screen" class="screen">
+        <h2 id="turn-indicator">Waiting for opponent...</h2>
+        <div id="game-board" class="board"></div>
+    </div>
 
-<script type="module" src="app.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
