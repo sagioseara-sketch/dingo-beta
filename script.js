@@ -150,10 +150,10 @@ document.getElementById('create-btn').addEventListener('click', async () => {
     roomId = Math.floor(1000 + Math.random() * 9000).toString();
     playerRole = "p1";
     
-    // BACK TO BASICS: selectedNumbers array
+    // FIX: Using an Object instead of an Array for perfect Firebase syncing
     await set(ref(db, `rooms/${roomId}`), {
         players: { p1: myUsername },
-        gameState: { status: "waiting", currentTurn: "p1", selectedNumbers: [0], winner: "" }
+        gameState: { status: "waiting", currentTurn: "p1", selected: { "init": true }, winner: "" }
     });
 
     document.getElementById('display-room-code').innerText = roomId;
@@ -301,15 +301,21 @@ function startGame() {
             turnText.style.color = "#aaaaaa";
         }
 
-        // THE RELIABLE ARRAY CHECK
-        if (state.selectedNumbers) {
-            state.selectedNumbers.forEach(num => {
-                if (num !== 0) { 
-                    const cell = document.getElementById(`cell-${num}`);
+        // FIX: Reading the reliable Firebase Object instead of an Array
+        if (state.selected) {
+            Object.keys(state.selected).forEach(numStr => {
+                if (numStr !== "init") { 
+                    const cell = document.getElementById(`cell-${numStr}`);
                     if (cell) cell.classList.add('crossed');
                 }
             });
-            checkWin(state.selectedNumbers);
+            
+            // Convert back to array just for the Win Checker logic
+            const pickedNumbersArray = Object.keys(state.selected)
+                .filter(k => k !== "init")
+                .map(Number);
+                
+            checkWin(pickedNumbersArray);
         }
     });
 }
@@ -319,20 +325,20 @@ async function handleNumberClick(num) {
     const snapshot = await get(stateRef);
     const state = snapshot.val();
 
-    // STRICT CHECK: Is it my turn? Did no one win? Is the number NOT in the array?
-    if (state.currentTurn === playerRole && !state.winner && !state.selectedNumbers.includes(num)) {
-        const newSelected = [...(state.selectedNumbers || []), num];
+    // STRICT CHECK: Ensure it is my turn, game isn't over, and this specific number key doesn't exist yet
+    if (state.currentTurn === playerRole && !state.winner && !(state.selected && state.selected[num])) {
         const nextTurn = playerRole === "p1" ? "p2" : "p1";
-
+        
+        // Push the update directly to the number's unique path in Firebase
         await update(stateRef, {
-            selectedNumbers: newSelected,
+            [`selected/${num}`]: true,
             currentTurn: nextTurn
         });
     }
 }
 
-function checkWin(selectedArray) {
-    const hits = myBoard.map(num => selectedArray.includes(num) ? 1 : 0);
+function checkWin(pickedNumbersArray) {
+    const hits = myBoard.map(num => pickedNumbersArray.includes(num) ? 1 : 0);
     let lines = 0;
 
     for (let i = 0; i < 25; i += 5) if (hits[i] && hits[i+1] && hits[i+2] && hits[i+3] && hits[i+4]) lines++;
@@ -379,3 +385,4 @@ document.getElementById('home-btn').addEventListener('click', () => {
     resetGameState(); 
     showScreen('home');
 });
+                                                          
